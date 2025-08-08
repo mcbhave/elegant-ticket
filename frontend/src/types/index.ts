@@ -33,7 +33,7 @@ export interface EventImage {
 export interface EventDetails {
   start_time: number;
   end_time: number;
-  event_status: 'active' | 'cancelled' | 'postponed' | 'completed';
+  event_status: "active" | "cancelled" | "postponed" | "completed";
   url?: string;
   price: string;
   currency: string;
@@ -107,7 +107,7 @@ export interface EventPass {
   quantity: number;
   total_price: number;
   currency: string;
-  status: 'active' | 'used' | 'cancelled' | 'refunded';
+  status: "active" | "used" | "cancelled" | "refunded";
   qr_code: string;
   purchase_date: string;
   event?: Event;
