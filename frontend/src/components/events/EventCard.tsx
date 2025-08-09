@@ -170,16 +170,37 @@ export const EventCard: React.FC<EventCardProps> = ({
           )}
         </div>
 
-        {/* Tags */}
-        {event.SEO_Tags && (
+        {/* Tags - Both SEO_Tags and tags */}
+        {(event.SEO_Tags || event.tags) && (
           <div className="flex flex-wrap gap-1 mt-3">
-            {event.SEO_Tags.split(",")
-              .slice(0, 3)
-              .map((tag, i) => (
-                <Badge key={i} variant="outline" className="text-xs">
-                  {tag.trim()}
-                </Badge>
-              ))}
+            {/* SEO Tags
+            {event.SEO_Tags &&
+              event.SEO_Tags.split(",")
+                .slice(0, 3)
+                .map((tag, i) => (
+                  <Badge
+                    key={`seo-${i}`}
+                    variant="outline"
+                    className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                  >
+                    {tag.trim()}
+                  </Badge>
+                ))} */}
+
+            {/* Regular Tags */}
+            {event.tags &&
+              event.tags
+                .split(",")
+                .slice(0, 3)
+                .map((tag, i) => (
+                  <Badge
+                    key={`tag-${i}`}
+                    variant="outline"
+                    className="text-xs bg-green-50 text-green-700 border-green-200"
+                  >
+                    {tag.trim()}
+                  </Badge>
+                ))}
           </div>
         )}
       </CardContent>
