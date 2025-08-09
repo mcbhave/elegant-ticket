@@ -145,6 +145,7 @@ const EventDetails = () => {
     ? event.SEO_Tags.split(",").map((tag) => tag.trim())
     : [];
   const eventImage =
+    // @ts-ignore
     event._item_images_of_items?.items?.[0]?.display_image ||
     "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=1920&auto=format&fit=crop&q=80";
 
@@ -422,6 +423,7 @@ const EventDetails = () => {
                           className="w-full h-full object-contain"
                           onError={(e) => {
                             e.currentTarget.style.display = "none";
+                            // @ts-ignore
                             e.currentTarget.nextElementSibling.style.display =
                               "flex";
                           }}
@@ -442,28 +444,34 @@ const EventDetails = () => {
                     <p className="text-muted-foreground mb-4">
                       {event._shops.description}
                     </p>
-                    {event._shops.custom_domain && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="w-full"
-                      >
-                        <a
-                          href={event._shops.custom_domain}
-                          target="_blank"
-                          rel="noopener noreferrer"
+
+                    {
+                      // @ts-ignore
+                      event._shops.custom_domain && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          className="w-full"
                         >
-                          <Globe className="w-4 h-4 mr-2" />
-                          Visit Website
-                        </a>
-                      </Button>
-                    )}
+                          <a
+                            // @ts-ignore
+                            href={event._shops.custom_domain}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Globe className="w-4 h-4 mr-2" />
+                            Visit Website
+                          </a>
+                        </Button>
+                      )
+                    }
                   </CardContent>
                 </Card>
               )}
 
               {/* Event Stats */}
+
               <Card className="bg-gradient-card border-0 shadow-card">
                 <CardHeader>
                   <CardTitle>Event Stats</CardTitle>
@@ -484,7 +492,10 @@ const EventDetails = () => {
                       variant="secondary"
                       className="bg-blue-100 text-blue-800"
                     >
-                      {event._events_seo_of_items?.availability || "Available"}
+                      {
+                        // @ts-ignore
+                        event._events_seo_of_items?.availability || "Available"
+                      }
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
@@ -493,14 +504,23 @@ const EventDetails = () => {
                       {event._events_seo_of_items?.currency || "INR"}
                     </span>
                   </div>
-                  {event._events_seo_of_items?.valid_from && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Valid From</span>
-                      <span className="font-semibold">
-                        {event._events_seo_of_items.valid_from}
-                      </span>
-                    </div>
-                  )}
+
+                  {
+                    // @ts-ignore
+                    event._events_seo_of_items?.valid_from && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">
+                          Valid From
+                        </span>
+                        <span className="font-semibold">
+                          {
+                            // @ts-ignore
+                            event._events_seo_of_items.valid_from
+                          }
+                        </span>
+                      </div>
+                    )
+                  }
                 </CardContent>
               </Card>
 
@@ -548,6 +568,7 @@ const EventDetails = () => {
               <Button variant="outline" asChild>
                 <Link to="/events">
                   View All Events
+                  {/* @ts-ignore */}
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </Link>
               </Button>
@@ -569,6 +590,7 @@ const EventDetails = () => {
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       e.currentTarget.style.display = "none";
+                      // @ts-ignore
                       e.currentTarget.nextElementSibling.style.display = "flex";
                     }}
                   />

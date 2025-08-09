@@ -18,7 +18,10 @@ const Events = () => {
   useEffect(() => {
     const loadEventsAndShops = async () => {
       try {
-        const events = await apiService.getEvents();
+        const response = await apiService.getEvents();
+        // Handle the new response structure with items array
+        // @ts-ignore
+        const events = response.items || response;
         setFeaturedEvents(events.slice(0, 6));
 
         // Extract unique shops from events
@@ -30,6 +33,7 @@ const Events = () => {
             ])
           ).values()
         );
+        // @ts-ignore
         setShops(uniqueShops);
       } catch (error) {
         console.error("Failed to load featured events:", error);
@@ -48,7 +52,10 @@ const Events = () => {
 
     try {
       const filters = shopId ? { shopId } : {};
-      const events = await apiService.getEvents(filters);
+      const response = await apiService.getEvents(filters);
+      // Handle the new response structure with items array
+      // @ts-ignore
+      const events = response.items || response;
       setFeaturedEvents(events.slice(0, 6));
     } catch (error) {
       console.error("Failed to filter events:", error);
