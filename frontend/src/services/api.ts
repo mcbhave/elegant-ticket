@@ -11,6 +11,8 @@ import {
 class ApiService {
   private api: AxiosInstance;
   private baseURL = "https://x8ki-letl-twmt.n7.xano.io/api:2duosZ1Y";
+  private elegantAuthKey = "e3f9c2a4-7b1e-4d3a-9c8f-2a6f9e3b1d7c";
+  private publicAuthToken: string | null = null;
 
   constructor() {
     this.api = axios.create({
@@ -21,38 +23,99 @@ class ApiService {
       },
     });
 
-    // Attach token to requests
+    // Request interceptor to handle tokens
     this.api.interceptors.request.use(
-      (config) => {
-        const token = this.getStoredToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+      async (config) => {
+        // For events endpoint, use public auth token
+        if (config.url?.includes("/events")) {
+          const publicToken = await this.getPublicAuthToken();
+          if (publicToken) {
+            config.headers.Authorization = `Bearer ${publicToken}`;
+            return config;
+          }
         }
+
+        // For other endpoints, use stored user token
+        const userToken = this.getStoredToken();
+        if (userToken) {
+          config.headers.Authorization = `Bearer ${userToken}`;
+        }
+
         return config;
       },
       (error) => Promise.reject(error)
     );
 
-    // Handle 401 errors - but don't redirect from landing page
+    // Handle 401 errors
     this.api.interceptors.response.use(
       (response) => response,
-      (error) => {
+      async (error) => {
         if (error.response?.status === 401) {
-          this.clearStoredToken();
-          // Only redirect if we're on a protected route
-          if (
-            window.location.pathname.startsWith("/dashboard") ||
-            window.location.pathname.startsWith("/profile")
-          ) {
-            window.location.href = "/auth";
+          // If it's an events request that failed, try to refresh public token
+          if (error.config?.url?.includes("/events")) {
+            this.publicAuthToken = null; // Clear cached public token
+            // Retry with fresh public token
+            const publicToken = await this.getPublicAuthToken();
+            if (publicToken) {
+              error.config.headers.Authorization = `Bearer ${publicToken}`;
+              return this.api.request(error.config);
+            }
+          } else {
+            // For user-specific endpoints, clear user token and redirect if needed
+            this.clearStoredToken();
+            if (
+              window.location.pathname.startsWith("/dashboard") ||
+              window.location.pathname.startsWith("/profile")
+            ) {
+              window.location.href = "/auth";
+            }
           }
         }
         return Promise.reject(error);
       }
     );
+
+    // Initialize public auth token on startup
+    this.initializePublicAuth();
   }
 
-  // ===== TOKEN STORAGE =====
+  // ===== PUBLIC AUTH TOKEN =====
+  private async initializePublicAuth(): Promise<void> {
+    try {
+      await this.getPublicAuthToken();
+    } catch (error) {
+      console.warn("Failed to initialize public auth token:", error);
+    }
+  }
+
+  private async getPublicAuthToken(): Promise<string | null> {
+    // Return cached token if available
+    if (this.publicAuthToken) {
+      return this.publicAuthToken;
+    }
+
+    try {
+      const response = await axios.get(`${this.baseURL}/auth/me`, {
+        headers: {
+          "X-Elegant-Auth": this.elegantAuthKey,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      });
+
+      if (response.data?.authToken) {
+        this.publicAuthToken = response.data.authToken;
+        console.log("Public auth token obtained successfully");
+        return this.publicAuthToken;
+      }
+    } catch (error) {
+      console.error("Failed to get public auth token:", error);
+    }
+
+    return null;
+  }
+
+  // ===== TOKEN STORAGE (for user authentication) =====
   private getStoredToken(): string | null {
     return localStorage.getItem("auth_token");
   }
@@ -101,13 +164,10 @@ class ApiService {
     }
   }
 
-  // ===== AUTH =====
+  // ===== AUTH (User Authentication) =====
   async login(credentials: AuthCredentials): Promise<User> {
     try {
-      const res = await this.api.post(
-        `${this.baseURL}/auth/login`,
-        credentials
-      );
+      const res = await this.api.post(`/auth/login`, credentials);
 
       const user = res.data;
       if (user.authToken) {
@@ -123,7 +183,7 @@ class ApiService {
 
   async signup(userData: SignupData): Promise<User> {
     try {
-      const res = await this.api.post(`${this.baseURL}/auth/signup`, userData);
+      const res = await this.api.post(`/auth/signup`, userData);
 
       const user = res.data;
       if (user.authToken) {
@@ -141,7 +201,7 @@ class ApiService {
     this.clearStoredToken();
   }
 
-  // ===== EVENTS =====
+  // ===== EVENTS (Now using public auth token automatically) =====
   async getEvents(filters?: EventFilters): Promise<Event[]> {
     try {
       const params = new URLSearchParams();
@@ -192,6 +252,14 @@ class ApiService {
 
   isAuthenticated(): boolean {
     return !!this.getStoredToken();
+  }
+
+  // ===== UTILITY =====
+  // Method to manually refresh public auth token if needed
+  async refreshPublicAuthToken(): Promise<boolean> {
+    this.publicAuthToken = null;
+    const token = await this.getPublicAuthToken();
+    return !!token;
   }
 }
 
