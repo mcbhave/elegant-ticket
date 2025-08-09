@@ -33,13 +33,19 @@ class ApiService {
       (error) => Promise.reject(error)
     );
 
-    // Handle 401 errors
+    // Handle 401 errors - but don't redirect from landing page
     this.api.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
           this.clearStoredToken();
-          window.location.href = "/auth";
+          // Only redirect if we're on a protected route
+          if (
+            window.location.pathname.startsWith("/dashboard") ||
+            window.location.pathname.startsWith("/profile")
+          ) {
+            window.location.href = "/auth";
+          }
         }
         return Promise.reject(error);
       }
@@ -58,6 +64,41 @@ class ApiService {
   private clearStoredToken(): void {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("user_data");
+  }
+
+  // ===== ERROR HANDLING =====
+  handleApiError(error: any): string {
+    if (error.response) {
+      // Server responded with error status
+      const status = error.response.status;
+      const message =
+        error.response.data?.message ||
+        error.response.data?.error ||
+        error.message;
+
+      switch (status) {
+        case 400:
+          return message || "Invalid request. Please check your input.";
+        case 401:
+          return "Authentication failed. Please log in again.";
+        case 403:
+          return "Access denied. You don't have permission to perform this action.";
+        case 404:
+          return "Resource not found.";
+        case 422:
+          return message || "Validation error. Please check your input.";
+        case 500:
+          return "Server error. Please try again later.";
+        default:
+          return message || `An error occurred (${status})`;
+      }
+    } else if (error.request) {
+      // Network error
+      return "Network error. Please check your internet connection.";
+    } else {
+      // Other error
+      return error.message || "An unexpected error occurred.";
+    }
   }
 
   // ===== AUTH =====

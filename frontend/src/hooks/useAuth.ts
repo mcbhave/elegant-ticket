@@ -1,7 +1,7 @@
-import { useState, useEffect, createContext, useContext } from 'react';
-import { User, AuthCredentials, SignupData } from '@/types';
-import { apiService } from '@/services/api';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect, createContext, useContext } from "react";
+import { User, AuthCredentials, SignupData } from "@/types";
+import { apiService } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface AuthContextType {
   user: User | null;
@@ -18,7 +18,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
@@ -37,7 +37,7 @@ export const useAuthProvider = () => {
           setUser(currentUser);
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
+        console.error("Auth check failed:", error);
       } finally {
         setIsLoading(false);
       }

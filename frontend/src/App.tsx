@@ -3,7 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/components/ui/auth-provider";
+import React, { ReactNode } from "react";
+import { AuthContext, useAuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -11,6 +12,13 @@ import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
 
 const queryClient = new QueryClient();
+
+// AuthProvider component using your existing auth hook
+const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const auth = useAuthProvider();
+
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

@@ -26,10 +26,13 @@ const Index = () => {
   useEffect(() => {
     const loadFeaturedEvents = async () => {
       try {
+        // Try to load events, but don't redirect if it fails
         const events = await apiService.getEvents();
         setFeaturedEvents(events.slice(0, 6)); // Get first 6 events for homepage
       } catch (error) {
         console.error("Failed to load featured events:", error);
+        // Set empty array instead of redirecting - landing page should still work
+        setFeaturedEvents([]);
       } finally {
         setIsLoading(false);
       }
@@ -113,14 +116,14 @@ const Index = () => {
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
             </Button>
-            {/* <Button
+            <Button
               size="lg"
               variant="outline"
               asChild
               className="border-white/20 text-white hover:bg-white/10 backdrop-blur-sm"
             >
               <Link to="/auth?tab=signup">Join EventHub</Link>
-            </Button> */}
+            </Button>
           </div>
         </div>
 
