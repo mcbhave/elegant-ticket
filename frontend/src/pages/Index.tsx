@@ -19,27 +19,9 @@ import { apiService } from "@/services/api";
 import heroImage from "@/assets/hero-events.jpg";
 
 const Index = () => {
-  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
+  // const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    const loadFeaturedEvents = async () => {
-      try {
-        // Try to load events, but don't redirect if it fails
-        const events = await apiService.getEvents();
-        setFeaturedEvents(events.slice(0, 6)); // Get first 6 events for homepage
-      } catch (error) {
-        console.error("Failed to load featured events:", error);
-        // Set empty array instead of redirecting - landing page should still work
-        setFeaturedEvents([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadFeaturedEvents();
-  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +62,7 @@ const Index = () => {
 
           <p className="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto leading-relaxed">
             From intimate concerts to grand festivals, find and join thousands
-            of incredible events happening around the world.
+            of incredible events happening around you.
           </p>
 
           {/* Hero Search */}
