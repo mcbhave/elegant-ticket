@@ -38,7 +38,7 @@ const Events = () => {
           ? response
           : response.items || [];
 
-        setFeaturedEvents(events.slice(0, 6));
+        setFeaturedEvents(events.slice(0, 100));
 
         // Extract unique shops from events
         const uniqueShops: Shop[] = Array.from(
@@ -76,7 +76,7 @@ const Events = () => {
       // Handle both response formats
       const events = Array.isArray(response) ? response : response.items || [];
 
-      setFeaturedEvents(events.slice(0, 6));
+      setFeaturedEvents(events.slice(0, 100));
     } catch (error) {
       console.error("Failed to filter events:", error);
       setError("Failed to filter events. Please try again.");
@@ -128,7 +128,7 @@ const Events = () => {
           {/* Loading State */}
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {Array.from({ length: 6 }).map((_, index) => (
+              {Array.from({ length: 100 }).map((_, index) => (
                 <Card key={index} className="animate-pulse">
                   <div className="h-48 bg-muted rounded-t-lg"></div>
                   <CardContent className="p-6">

@@ -42,7 +42,7 @@ export const Header: React.FC = () => {
 
   const navigationItems = [
     { label: "Events", href: "/events" },
-    { label: "Browse", href: "/browse" },
+    // { label: "Browse", href: "/browse" },
     { label: "About", href: "/about" },
   ];
 
@@ -158,11 +158,11 @@ export const Header: React.FC = () => {
               </DropdownMenu>
             ) : (
               <div className="flex items-center space-x-2">
-                <Button variant="ghost" asChild>
+                {/* <Button variant="ghost" asChild>
                   <Link to="/auth">Sign In</Link>
-                </Button>
+                </Button> */}
                 <Button asChild className="btn-glow">
-                  <Link to="/auth?tab=signup">Get Started</Link>
+                  <Link to="/auth?tab=signup">Sign In</Link>
                 </Button>
               </div>
             )}

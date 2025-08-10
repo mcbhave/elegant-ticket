@@ -116,14 +116,14 @@ const Index = () => {
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
             </Button>
-            <Button
+            {/* <Button
               size="lg"
               variant="outline"
               asChild
               className="border-white/20 text-white hover:bg-white/10 backdrop-blur-sm"
             >
               <Link to="/auth?tab=signup">Join EventHub</Link>
-            </Button>
+            </Button> */}
           </div>
         </div>
 

@@ -8,6 +8,41 @@ import {
   EventFilters,
 } from "@/types";
 
+// Add Review interface
+interface Review {
+  id: string;
+  created_at: number;
+  items_id: number;
+  shops_id: string;
+  Comments: string;
+  Helpful_count: number;
+  Is_visible: boolean;
+  Rating: number;
+  Title: string;
+  item_images_id: number[];
+  users_id: number;
+  user_info?: {
+    id: number;
+    name: string;
+  };
+}
+
+interface ReviewsResponse {
+  itemsReceived: number;
+  curPage: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  offset: number;
+  perPage: number;
+  itemsTotal: number;
+  pageTotal: number;
+  items: Review[];
+  ratings_avg: {
+    reviews_Rating1: number;
+    Total_items: number;
+  }[];
+}
+
 class ApiService {
   private api: AxiosInstance;
   private baseURL = "https://x8ki-letl-twmt.n7.xano.io/api:2duosZ1Y";
@@ -27,7 +62,10 @@ class ApiService {
     this.api.interceptors.request.use(
       async (config) => {
         // For events endpoint, use public auth token
-        if (config.url?.includes("/events")) {
+        if (
+          config.url?.includes("/events") ||
+          config.url?.includes("/reviews")
+        ) {
           const publicToken = await this.getPublicAuthToken();
           if (publicToken) {
             config.headers.Authorization = `Bearer ${publicToken}`;
@@ -51,8 +89,11 @@ class ApiService {
       (response) => response,
       async (error) => {
         if (error.response?.status === 401) {
-          // If it's an events request that failed, try to refresh public token
-          if (error.config?.url?.includes("/events")) {
+          // If it's an events or reviews request that failed, try to refresh public token
+          if (
+            error.config?.url?.includes("/events") ||
+            error.config?.url?.includes("/reviews")
+          ) {
             this.publicAuthToken = null; // Clear cached public token
             // Retry with fresh public token
             const publicToken = await this.getPublicAuthToken();
@@ -225,6 +266,19 @@ class ApiService {
       return res.data;
     } catch (err) {
       console.error("Failed to fetch event", err);
+      return null;
+    }
+  }
+
+  // ===== REVIEWS =====
+  async getReviewsByItemId(
+    itemId: number | string
+  ): Promise<ReviewsResponse | null> {
+    try {
+      const res = await this.api.get(`/reviews?items_id=${itemId}`);
+      return res.data;
+    } catch (err) {
+      console.error("Failed to fetch reviews", err);
       return null;
     }
   }

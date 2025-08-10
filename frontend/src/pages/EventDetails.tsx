@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   ExternalLink,
   Ticket,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
@@ -22,10 +23,47 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Event } from "@/types";
 import { apiService } from "@/services/api";
 
+// Review interface for API data
+interface ReviewData {
+  id: string;
+  created_at: number;
+  items_id: number;
+  shops_id: string;
+  Comments: string;
+  Helpful_count: number;
+  Is_visible: boolean;
+  Rating: number;
+  Title: string;
+  item_images_id: number[];
+  users_id: number;
+  user_info?: {
+    id: number;
+    name: string;
+  };
+}
+
+interface ReviewsResponse {
+  itemsReceived: number;
+  curPage: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  offset: number;
+  perPage: number;
+  itemsTotal: number;
+  pageTotal: number;
+  items: ReviewData[];
+  ratings_avg: {
+    reviews_Rating1: number;
+    Total_items: number;
+  }[];
+}
+
 const EventDetails = () => {
   const { id } = useParams();
   const [event, setEvent] = useState<Event | null>(null);
   const [relatedEvents, setRelatedEvents] = useState<Event[]>([]);
+  const [reviews, setReviews] = useState<ReviewData[]>([]);
+  const [reviewsData, setReviewsData] = useState<ReviewsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
 
@@ -37,9 +75,20 @@ const EventDetails = () => {
           const eventData = await apiService.getEventById(id);
           setEvent(eventData);
 
-          // Fetch related events (same category/tags)
-          const allEvents = await apiService.getEvents();
           if (eventData) {
+            // Fetch reviews for this event
+            const reviewsResponse = await apiService.getReviewsByItemId(
+              eventData.id
+            );
+            if (reviewsResponse) {
+              setReviewsData(reviewsResponse);
+              setReviews(
+                reviewsResponse.items.filter((review) => review.Is_visible)
+              );
+            }
+
+            // Fetch related events (same shop)
+            const allEvents = await apiService.getEvents();
             const related = allEvents
               .filter(
                 (e) =>
@@ -59,37 +108,43 @@ const EventDetails = () => {
     loadEventDetails();
   }, [id]);
 
-  // Hardcoded reviews for now
-  const reviews = [
-    {
-      id: 1,
-      author: "Sarah Johnson",
-      rating: 5,
-      comment: "Amazing event! Great organization and fantastic atmosphere.",
-      date: "2025-01-15",
-      avatar:
-        "https://images.unsplash.com/photo-1494790108755-2616b612b647?w=32&h=32&fit=crop&crop=face",
-    },
-    {
-      id: 2,
-      author: "Mike Chen",
-      rating: 4,
-      comment: "Really enjoyed this event. Would definitely attend again!",
-      date: "2025-01-10",
-      avatar:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face",
-    },
-    {
-      id: 3,
-      author: "Emily Rodriguez",
-      rating: 5,
-      comment:
-        "Exceeded my expectations. The venue was perfect and the performer was incredible.",
-      date: "2025-01-08",
-      avatar:
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face",
-    },
-  ];
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatReviewDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getAverageRating = () => {
+    if (reviewsData?.ratings_avg && reviewsData.ratings_avg.length > 0) {
+      return reviewsData.ratings_avg[0].reviews_Rating1;
+    }
+    return 0;
+  };
+
+  const getTotalReviews = () => {
+    if (reviewsData?.ratings_avg && reviewsData.ratings_avg.length > 0) {
+      return reviewsData.ratings_avg[0].Total_items;
+    }
+    return 0;
+  };
 
   if (isLoading) {
     return (
@@ -125,24 +180,11 @@ const EventDetails = () => {
     );
   }
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const eventTags = event.SEO_Tags
-    ? event.SEO_Tags.split(",").map((tag) => tag.trim())
+  // Use tags instead of SEO_Tags
+  // @ts-ignore
+  const eventTags = event.tags
+    ? // @ts-ignore
+      event.tags.split(",").map((tag) => tag.trim())
     : [];
   const eventImage =
     // @ts-ignore
@@ -176,8 +218,11 @@ const EventDetails = () => {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 tracking-tight">
               {event.title}
             </h1>
-            <p className="text-xl md:text-2xl mb-6 text-white/90 leading-relaxed">
-              {event.description}
+            {/* Show only first line/sentence of description */}
+            <p className="text-xl md:text-2xl mb-6 text-white/90 leading-relaxed overflow-hidden">
+              {event.description.length > 100
+                ? event.description.substring(0, 100) + "..."
+                : event.description.split(".")[0] + "."}
             </p>
 
             {/* Quick Info */}
@@ -279,21 +324,48 @@ const EventDetails = () => {
                       </div>
                     )}
                   </div>
+                </CardContent>
+              </Card>
 
-                  {event._events_seo_of_items?.url && (
-                    <div className="pt-4 border-t border-border">
-                      <Button variant="outline" asChild>
-                        <a
-                          href={event._events_seo_of_items.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          Event Website
-                        </a>
-                      </Button>
+              {/* About This Event Card */}
+              <Card className="bg-gradient-card border-0 shadow-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Globe className="w-6 h-6 text-primary" />
+                    <span>About This Event</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h3 className="text-2xl font-bold mb-4 text-foreground">
+                      {event.title}
+                    </h3>
+                    <div className="prose prose-gray max-w-none">
+                      <p className="text-muted-foreground leading-relaxed text-base">
+                        {event.description}
+                      </p>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Event Website Button */}
+                  {
+                    // @ts-ignore
+                    event._events_seo_of_items?.organization_url && (
+                      <div className="pt-4 border-t border-border">
+                        <Button variant="outline" asChild>
+                          <a
+                            // @ts-ignore
+                            href={event._events_seo_of_items.organization_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                            Event Website
+                          </a>
+                        </Button>
+                      </div>
+                    )
+                  }
                 </CardContent>
               </Card>
 
@@ -322,85 +394,100 @@ const EventDetails = () => {
                 </Card>
               )}
 
-              {/* Reviews */}
-              <Card className="bg-gradient-card border-0 shadow-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Star className="w-6 h-6 text-primary" />
-                      <span>Reviews & Ratings</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                      <span className="font-bold">4.7</span>
-                      <span className="text-muted-foreground">
-                        ({reviews.length} reviews)
-                      </span>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {reviews
-                      .slice(0, reviewsExpanded ? reviews.length : 2)
-                      .map((review) => (
-                        <div
-                          key={review.id}
-                          className="border-b border-border last:border-b-0 pb-4 last:pb-0"
-                        >
-                          <div className="flex items-start space-x-4">
-                            <Avatar className="w-10 h-10">
-                              <AvatarImage
-                                src={review.avatar}
-                                alt={review.author}
-                              />
-                              <AvatarFallback>
-                                {review.author.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-1">
-                                <h4 className="font-semibold">
-                                  {review.author}
-                                </h4>
-                                <div className="flex items-center">
-                                  {Array.from({ length: 5 }).map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`w-4 h-4 ${
-                                        i < review.rating
-                                          ? "text-yellow-400 fill-current"
-                                          : "text-gray-300"
-                                      }`}
-                                    />
-                                  ))}
+              {/* Reviews - Updated with API data */}
+              {reviews.length > 0 && (
+                <Card className="bg-gradient-card border-0 shadow-card">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Star className="w-6 h-6 text-primary" />
+                        <span>Reviews & Ratings</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Star className="w-5 h-5 text-yellow-400 fill-current" />
+                        <span className="font-bold">
+                          {getAverageRating() > 0
+                            ? getAverageRating().toFixed(1)
+                            : "N/A"}
+                        </span>
+                        <span className="text-muted-foreground">
+                          ({getTotalReviews()} reviews)
+                        </span>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {reviews
+                        .slice(0, reviewsExpanded ? reviews.length : 2)
+                        .map((review) => (
+                          <div
+                            key={review.id}
+                            className="border-b border-border last:border-b-0 pb-4 last:pb-0"
+                          >
+                            <div className="flex items-start space-x-4">
+                              <Avatar className="w-10 h-10">
+                                <AvatarFallback className="bg-primary/10 text-primary">
+                                  {review.user_info?.name
+                                    ? review.user_info.name
+                                        .charAt(0)
+                                        .toUpperCase()
+                                    : "U"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <h4 className="font-semibold">
+                                    {review.user_info?.name || "Anonymous User"}
+                                  </h4>
+                                  <div className="flex items-center">
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                      <Star
+                                        key={i}
+                                        className={`w-4 h-4 ${
+                                          i < review.Rating
+                                            ? "text-yellow-400 fill-current"
+                                            : "text-gray-300"
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-sm text-muted-foreground">
+                                    {formatReviewDate(review.created_at)}
+                                  </span>
                                 </div>
-                                <span className="text-sm text-muted-foreground">
-                                  {review.date}
-                                </span>
+                                <h5 className="font-medium mb-1">
+                                  {review.Title}
+                                </h5>
+                                <p className="text-muted-foreground">
+                                  {review.Comments}
+                                </p>
+                                {review.Helpful_count > 0 && (
+                                  <p className="text-sm text-muted-foreground mt-2">
+                                    {review.Helpful_count} people found this
+                                    helpful
+                                  </p>
+                                )}
                               </div>
-                              <p className="text-muted-foreground">
-                                {review.comment}
-                              </p>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
 
-                    {reviews.length > 2 && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => setReviewsExpanded(!reviewsExpanded)}
-                        className="w-full"
-                      >
-                        {reviewsExpanded
-                          ? "Show Less"
-                          : `Show ${reviews.length - 2} More Reviews`}
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      {reviews.length > 2 && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setReviewsExpanded(!reviewsExpanded)}
+                          className="w-full"
+                        >
+                          {reviewsExpanded
+                            ? "Show Less"
+                            : `Show ${reviews.length - 2} More Reviews`}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Right Column - Sidebar */}
@@ -471,7 +558,6 @@ const EventDetails = () => {
               )}
 
               {/* Event Stats */}
-
               <Card className="bg-gradient-card border-0 shadow-card">
                 <CardHeader>
                   <CardTitle>Event Stats</CardTitle>
@@ -568,7 +654,6 @@ const EventDetails = () => {
               <Button variant="outline" asChild>
                 <Link to="/events">
                   View All Events
-                  {/* @ts-ignore */}
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </Link>
               </Button>
