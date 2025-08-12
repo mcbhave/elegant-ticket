@@ -64,7 +64,8 @@ class ApiService {
         // For events endpoint, use public auth token
         if (
           config.url?.includes("/events") ||
-          config.url?.includes("/reviews")
+          config.url?.includes("/reviews") ||
+          config.url?.includes("/menus")
         ) {
           const publicToken = await this.getPublicAuthToken();
           if (publicToken) {
@@ -284,9 +285,21 @@ class ApiService {
   }
 
   // ===== MENUS =====
-  async getMenus(shopId: string): Promise<MenuItem[]> {
+  // async getMenus(shopId: string): Promise<MenuItem[]> {
+  //   try {
+  //     const res = await this.api.get(`/menus/${shopId}`);
+  //     return res.data;
+  //   } catch (err) {
+  //     console.error("Failed to fetch menus", err);
+  //     return [];
+  //   }
+  // }
+
+  // ==menus==
+
+  async getMenus(): Promise<MenuItem[]> {
     try {
-      const res = await this.api.get(`/menus/${shopId}`);
+      const res = await this.api.get(`/menus`);
       return res.data;
     } catch (err) {
       console.error("Failed to fetch menus", err);

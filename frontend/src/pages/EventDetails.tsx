@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Event } from "@/types";
 import { apiService } from "@/services/api";
+import { MenuItem } from "@/types";
 
 // Review interface for API data
 interface ReviewData {
@@ -66,7 +67,20 @@ const EventDetails = () => {
   const [reviewsData, setReviewsData] = useState<ReviewsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
+  const [menus, setMenus] = useState<MenuItem[]>([]);
 
+  useEffect(() => {
+    const loadMenus = async () => {
+      try {
+        const data = await apiService.getMenus(); // adjust to your API method
+        setMenus(data);
+      } catch (error) {
+        console.error("Failed to load menus:", error);
+      }
+    };
+
+    loadMenus();
+  }, []);
   useEffect(() => {
     const loadEventDetails = async () => {
       try {
@@ -194,7 +208,24 @@ const EventDetails = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-
+      {/* Menus */}
+      <div className="bg-background border-b">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex gap-6">
+          {menus
+            .filter((menu) => menu.is_visible)
+            .sort((a, b) => a.seq - b.seq)
+            .map((menu) => (
+              <Link
+                key={menu.id}
+                to={menu.custom_url || `/${menu.name}`}
+                target={menu.Open_new_window ? "_blank" : "_self"}
+                className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+              >
+                {menu.display_name}
+              </Link>
+            ))}
+        </div>
+      </div>
       {/* Back Button */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <Button variant="ghost" asChild className="mb-4">
