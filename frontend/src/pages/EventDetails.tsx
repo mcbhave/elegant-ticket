@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+
 import {
   Calendar,
   MapPin,
@@ -16,13 +17,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 import { EventCard } from "@/components/events/EventCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Event } from "@/types";
 import { apiService } from "@/services/api";
-import { MenuItem } from "@/types";
+// import { MenuItem } from "@/types";
 
 // Review interface for API data
 interface ReviewData {
@@ -67,20 +69,20 @@ const EventDetails = () => {
   const [reviewsData, setReviewsData] = useState<ReviewsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
-  const [menus, setMenus] = useState<MenuItem[]>([]);
+  // const [menus, setMenus] = useState<MenuItem[]>([]);
 
-  useEffect(() => {
-    const loadMenus = async () => {
-      try {
-        const data = await apiService.getMenus(); // adjust to your API method
-        setMenus(data);
-      } catch (error) {
-        console.error("Failed to load menus:", error);
-      }
-    };
+  // useEffect(() => {
+  //   const loadMenus = async () => {
+  //     try {
+  //       const data = await apiService.getMenus(); // adjust to your API method
+  //       setMenus(data);
+  //     } catch (error) {
+  //       console.error("Failed to load menus:", error);
+  //     }
+  //   };
 
-    loadMenus();
-  }, []);
+  //   loadMenus();
+  // }, []);
   useEffect(() => {
     const loadEventDetails = async () => {
       try {
@@ -184,7 +186,7 @@ const EventDetails = () => {
             The event you're looking for doesn't exist.
           </p>
           <Button asChild>
-            <Link to="/events">
+            <Link to="/items">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Events
             </Link>
@@ -208,7 +210,7 @@ const EventDetails = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      {/* Menus */}
+      {/* Menus
       <div className="bg-background border-b">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex gap-6">
           {menus
@@ -217,7 +219,7 @@ const EventDetails = () => {
             .map((menu) => (
               <Link
                 key={menu.id}
-                to={menu.custom_url || `/${menu.name}`}
+                to={menu.custom_url}
                 target={menu.Open_new_window ? "_blank" : "_self"}
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors"
               >
@@ -225,7 +227,7 @@ const EventDetails = () => {
               </Link>
             ))}
         </div>
-      </div>
+      </div> */}
       {/* Back Button */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <Button variant="ghost" asChild className="mb-4">
@@ -694,131 +696,7 @@ const EventDetails = () => {
       )}
 
       {/* Footer */}
-      <footer className="py-12 border-t border-border">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center p-1">
-                  <img
-                    src="https://elegantapt.com/wp-content/uploads/2024/04/Elegant_Revised_T_Logo_cropped.png.webp"
-                    alt="Elegant Enterprise Logo"
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                      // @ts-ignore
-                      e.currentTarget.nextElementSibling.style.display = "flex";
-                    }}
-                  />
-                  <div className="w-full h-full bg-gradient-primary rounded-lg items-center justify-center hidden">
-                    <Calendar className="w-5 h-5 text-white" />
-                  </div>
-                </div>
-                <span className="text-xl font-bold gradient-text">
-                  Elegant Enterprise
-                </span>
-              </div>
-              <p className="text-muted-foreground">
-                Connecting people through amazing events worldwide.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">Platform</h3>
-              <ul className="space-y-2 text-muted-foreground">
-                <li>
-                  <Link
-                    to="/events"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Browse Events
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/auth"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Sign Up
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/dashboard"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Dashboard
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">Support</h3>
-              <ul className="space-y-2 text-muted-foreground">
-                <li>
-                  <Link
-                    to="/help"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Help Center
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/contact"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Contact Us
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/terms"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Terms
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">Company</h3>
-              <ul className="space-y-2 text-muted-foreground">
-                <li>
-                  <Link
-                    to="/about"
-                    className="hover:text-primary transition-colors"
-                  >
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/careers"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Careers
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/privacy"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Privacy
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-8 pt-8 border-t border-border text-center text-muted-foreground">
-            <p>&copy; 2024 Elegant Enterprise. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

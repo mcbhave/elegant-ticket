@@ -43,6 +43,64 @@ interface ReviewsResponse {
   }[];
 }
 
+// Add dynamic menu interface
+interface DynamicMenu {
+  id: number;
+  created_at: number;
+  shops_id: string;
+  name: string;
+  seq: number;
+  display_name: string;
+  is_visible: boolean;
+  custom_url: string;
+  Open_new_window: boolean;
+}
+
+//products
+interface Product {
+  id: number;
+  shops_id: string;
+  item_type: string;
+  Is_disabled: boolean;
+  created_at: number;
+  title: string;
+  description: string;
+  SEO_Tags?: string;
+  tags?: string;
+  _item_images_of_items?: {
+    items?: ProductImage[];
+  };
+  _shops?: {
+    id: string;
+    name: string;
+    description: string;
+    logo: string;
+    custom_domain: string;
+    Is_visible: boolean;
+    slug: string;
+  };
+  _users?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+}
+
+interface ProductImage {
+  id: number;
+  display_image?: string;
+  seq: number;
+  image_type: string;
+  Is_disabled: boolean;
+}
+
+interface ProductFilters {
+  search?: string;
+  shopId?: string;
+  item_type?: string;
+}
+
 class ApiService {
   private api: AxiosInstance;
   private baseURL = "https://x8ki-letl-twmt.n7.xano.io/api:2duosZ1Y";
@@ -61,11 +119,12 @@ class ApiService {
     // Request interceptor to handle tokens
     this.api.interceptors.request.use(
       async (config) => {
-        // For events endpoint, use public auth token
+        // For events, reviews, menus, and products endpoints, use public auth token
         if (
           config.url?.includes("/events") ||
           config.url?.includes("/reviews") ||
-          config.url?.includes("/menus")
+          config.url?.includes("/menus") ||
+          config.url?.includes("/products")
         ) {
           const publicToken = await this.getPublicAuthToken();
           if (publicToken) {
@@ -90,10 +149,12 @@ class ApiService {
       (response) => response,
       async (error) => {
         if (error.response?.status === 401) {
-          // If it's an events or reviews request that failed, try to refresh public token
+          // If it's an events, reviews, menus, or products request that failed, try to refresh public token
           if (
             error.config?.url?.includes("/events") ||
-            error.config?.url?.includes("/reviews")
+            error.config?.url?.includes("/reviews") ||
+            error.config?.url?.includes("/menus") ||
+            error.config?.url?.includes("/products")
           ) {
             this.publicAuthToken = null; // Clear cached public token
             // Retry with fresh public token
@@ -285,24 +346,27 @@ class ApiService {
   }
 
   // ===== MENUS =====
-  // async getMenus(shopId: string): Promise<MenuItem[]> {
-  //   try {
-  //     const res = await this.api.get(`/menus/${shopId}`);
-  //     return res.data;
-  //   } catch (err) {
-  //     console.error("Failed to fetch menus", err);
-  //     return [];
-  //   }
-  // }
-
-  // ==menus==
-
-  async getMenus(): Promise<MenuItem[]> {
+  async getMenus(shopId?: string): Promise<DynamicMenu[]> {
     try {
-      const res = await this.api.get(`/menus`);
+      const endpoint = shopId ? `/menus/${shopId}` : "/menus";
+      const res = await this.api.get(endpoint);
       return res.data;
     } catch (err) {
       console.error("Failed to fetch menus", err);
+      return [];
+    }
+  }
+
+  // ===== DYNAMIC MENUS (New method specifically for dynamic menus) =====
+  async getDynamicMenus(shopId?: string): Promise<DynamicMenu[]> {
+    try {
+      const menus = await this.getMenus(shopId);
+      // Filter visible menus and sort by sequence
+      return menus
+        .filter((menu) => menu.is_visible)
+        .sort((a, b) => a.seq - b.seq);
+    } catch (err) {
+      console.error("Failed to fetch dynamic menus", err);
       return [];
     }
   }
@@ -319,6 +383,33 @@ class ApiService {
 
   isAuthenticated(): boolean {
     return !!this.getStoredToken();
+  }
+
+  // products function
+  async getProducts(filters?: ProductFilters): Promise<Product[]> {
+    try {
+      const params = new URLSearchParams();
+
+      if (filters?.search) params.append("search", filters.search);
+      if (filters?.shopId) params.append("shops_id", filters.shopId);
+      if (filters?.item_type) params.append("item_type", filters.item_type);
+
+      const res = await this.api.get(`/products?${params.toString()}`);
+      return res.data;
+    } catch (err) {
+      console.error("Failed to fetch products", err);
+      return [];
+    }
+  }
+
+  async getProductById(id: number | string): Promise<Product | null> {
+    try {
+      const res = await this.api.get(`/products/${id}`);
+      return res.data;
+    } catch (err) {
+      console.error("Failed to fetch product", err);
+      return null;
+    }
   }
 
   // ===== UTILITY =====
