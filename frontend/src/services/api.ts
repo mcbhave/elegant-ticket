@@ -119,6 +119,11 @@ class ApiService {
     // Request interceptor to handle tokens
     this.api.interceptors.request.use(
       async (config) => {
+        // Add domain header
+        if (typeof window !== "undefined") {
+          config.headers["X-Elegant-Domain"] = window.location.hostname;
+        }
+
         // For events, reviews, menus, and products endpoints, use public auth token
         if (
           config.url?.includes("/events") ||
@@ -143,7 +148,6 @@ class ApiService {
       },
       (error) => Promise.reject(error)
     );
-
     // Handle 401 errors
     this.api.interceptors.response.use(
       (response) => response,
