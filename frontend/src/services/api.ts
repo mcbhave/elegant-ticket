@@ -212,7 +212,7 @@ class ApiService {
 
       if (response.data?.authToken) {
         this.publicAuthToken = response.data.authToken;
-        console.log("Public auth token obtained successfully");
+        // console.log("Public auth token obtained successfully");
         return this.publicAuthToken;
       }
     } catch (error) {
