@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Event } from "@/types";
 import { apiService } from "@/services/api";
 import heroImage from "@/assets/hero-events.jpg";
+const [shops, setShops] = useState<Shop[]>([]);
 
 const Index = () => {
   const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
