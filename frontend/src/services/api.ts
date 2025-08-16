@@ -106,7 +106,6 @@ class ApiService {
   private baseURL = "https://x8ki-letl-twmt.n7.xano.io/api:2duosZ1Y";
   private elegantAuthKey = "e3f9c2a4-7b1e-4d3a-9c8f-2a6f9e3b1d7c";
   private publicAuthToken: string | null = null;
-  private elegantDomain: string | null = null;
   
   constructor() {
     this.api = axios.create({
@@ -123,7 +122,6 @@ class ApiService {
         // Add domain header
         if (typeof window !== "undefined") {
           config.headers["X-Elegant-Domain"] = window.location.hostname;
-          elegantDomain = window.location.hostname;
         }
 
         // For events, reviews, menus, and products endpoints, use public auth token
