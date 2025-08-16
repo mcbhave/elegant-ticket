@@ -1,5 +1,95 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+// Helper function to determine if URL is external
+const isExternalUrl = (url: string) => {
+  if (!url) return false;
+  return (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("//")
+  );
+};
+
+// Helper function to get the correct URL for a menu item
+const getMenuUrl = (menu: DynamicMenu) => {
+  if (menu.name.toLowerCase() === "home") {
+    return "/";
+  }
+
+  // If custom_url exists, use it as is
+  if (menu.custom_url) {
+    return menu.custom_url;
+  }
+
+  // Fallback to name-based URL
+  return `/${menu.name.toLowerCase()}`;
+};
+
+// Helper function to determine if menu should open in new window
+const shouldOpenInNewWindow = (menu: DynamicMenu) => {
+  // If explicitly set to open in new window
+  if (menu.Open_new_window) return true;
+
+  // If it's an external URL, open in new window
+  if (menu.custom_url && isExternalUrl(menu.custom_url)) return true;
+
+  return false;
+};
+
+// Render dynamic menu item - UPDATED VERSION
+const renderDynamicMenuItem = (menu: DynamicMenu, isMobile = false) => {
+  const menuUrl = getMenuUrl(menu);
+  const openInNewWindow = shouldOpenInNewWindow(menu);
+  const isExternal = isExternalUrl(menuUrl);
+
+  // For internal URLs, check if active
+  const isActive = !isExternal && isMenuItemActive(menuUrl, menu.name);
+
+  const baseClasses = isMobile
+    ? "text-foreground hover:text-primary transition-colors duration-200 font-medium block py-2"
+    : "text-foreground/80 hover:text-primary transition-colors duration-200 font-medium relative group";
+
+  const linkProps = {
+    className: baseClasses,
+    onClick: isMobile ? () => setIsMenuOpen(false) : undefined,
+  };
+
+  // Handle external URLs or URLs that should open in new window
+  if (openInNewWindow || isExternal) {
+    return (
+      <a
+        key={menu.id}
+        href={menuUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        {...linkProps}
+      >
+        <span className="flex items-center">
+          {menu.display_name}
+          {!isMobile && <ExternalLink className="w-3 h-3 ml-1" />}
+        </span>
+        {!isMobile && (
+          <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
+        )}
+      </a>
+    );
+  }
+
+  // Handle internal URLs (including relative paths like /products)
+  return (
+    <Link key={menu.id} to={menuUrl} {...linkProps}>
+      {menu.display_name}
+      {!isMobile && !isActive && (
+        <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
+      )}
+      {!isMobile && isActive && (
+        <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary" />
+      )}
+    </Link>
+  );
+};
+
+// Complete updated Header component
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Search,
   User,
@@ -8,6 +98,7 @@ import {
   Calendar,
   Settings,
   LogOut,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +111,128 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import { apiService } from "@/services/api";
 
-export const Header: React.FC = () => {
+// Dynamic menu interface
+interface DynamicMenu {
+  id: number;
+  created_at: number;
+  shops_id: string;
+  name: string;
+  seq: number;
+  display_name: string;
+  is_visible: boolean;
+  custom_url: string;
+  Open_new_window: boolean;
+}
+
+interface HeaderProps {
+  shopId?: string;
+}
+
+export const Header: React.FC<HeaderProps> = ({ shopId }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dynamicMenus, setDynamicMenus] = useState<DynamicMenu[]>([]);
+  const [isLoadingMenus, setIsLoadingMenus] = useState(true);
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Helper function to determine if URL is external
+  const isExternalUrl = (url: string) => {
+    if (!url) return false;
+    return (
+      url.startsWith("http://") ||
+      url.startsWith("https://") ||
+      url.startsWith("//")
+    );
+  };
+
+  // Helper function to determine if menu should open in new window
+  const shouldOpenInNewWindow = (menu: DynamicMenu) => {
+    // If explicitly set to open in new window
+    if (menu.Open_new_window) return true;
+
+    // If it's an external URL, open in new window
+    if (menu.custom_url && isExternalUrl(menu.custom_url)) return true;
+
+    return false;
+  };
+
+  // Helper function to get the correct URL for a menu item
+  const getMenuUrl = (menu: DynamicMenu) => {
+    if (menu.name.toLowerCase() === "home") {
+      return "/";
+    }
+
+    // If custom_url exists, use it as is
+    if (menu.custom_url) {
+      return menu.custom_url;
+    }
+
+    // Fallback to name-based URL
+    return `/${menu.name.toLowerCase()}`;
+  };
+
+  // Helper function to determine if a menu item is active (only for internal URLs)
+  const isMenuItemActive = (menuUrl: string, menuName: string) => {
+    // Don't mark external URLs as active
+    if (isExternalUrl(menuUrl)) return false;
+
+    if (menuName.toLowerCase() === "home") {
+      return location.pathname === "/" || location.pathname === "/home";
+    }
+    return (
+      location.pathname === menuUrl || location.pathname.startsWith(menuUrl)
+    );
+  };
+
+  // Fetch dynamic menus
+  useEffect(() => {
+    const fetchDynamicMenus = async () => {
+      try {
+        setIsLoadingMenus(true);
+        const menus = await apiService.getDynamicMenus(shopId);
+        // Filter visible menus and sort by sequence
+        const visibleMenus = menus
+          .filter((menu) => menu.is_visible)
+          .sort((a, b) => a.seq - b.seq);
+        setDynamicMenus(visibleMenus);
+      } catch (error) {
+        console.error("Failed to load dynamic menus:", error);
+        // Fallback to default menus if API fails
+        setDynamicMenus([
+          {
+            id: 1,
+            created_at: Date.now(),
+            shops_id: "",
+            name: "events",
+            seq: 1,
+            display_name: "Events",
+            is_visible: true,
+            custom_url: "/events",
+            Open_new_window: false,
+          },
+          {
+            id: 2,
+            created_at: Date.now(),
+            shops_id: "",
+            name: "about",
+            seq: 2,
+            display_name: "About",
+            is_visible: true,
+            custom_url: "/about",
+            Open_new_window: false,
+          },
+        ]);
+      } finally {
+        setIsLoadingMenus(false);
+      }
+    };
+
+    fetchDynamicMenus();
+  }, [shopId]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,11 +247,58 @@ export const Header: React.FC = () => {
     navigate("/");
   };
 
-  const navigationItems = [
-    { label: "Events", href: "/events" },
-    // { label: "Browse", href: "/browse" },
-    { label: "About", href: "/about" },
-  ];
+  // Render dynamic menu item
+  const renderDynamicMenuItem = (menu: DynamicMenu, isMobile = false) => {
+    const menuUrl = getMenuUrl(menu);
+    const openInNewWindow = shouldOpenInNewWindow(menu);
+    const isExternal = isExternalUrl(menuUrl);
+
+    // For internal URLs, check if active
+    const isActive = !isExternal && isMenuItemActive(menuUrl, menu.name);
+
+    const baseClasses = isMobile
+      ? "text-foreground hover:text-primary transition-colors duration-200 font-medium block py-2"
+      : "text-foreground/80 hover:text-primary transition-colors duration-200 font-medium relative group";
+
+    const linkProps = {
+      className: baseClasses,
+      onClick: isMobile ? () => setIsMenuOpen(false) : undefined,
+    };
+
+    // Handle external URLs or URLs that should open in new window
+    if (openInNewWindow || isExternal) {
+      return (
+        <a
+          key={menu.id}
+          href={menuUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          {...linkProps}
+        >
+          <span className="flex items-center">
+            {menu.display_name}
+            {!isMobile && <ExternalLink className="w-3 h-3 ml-1" />}
+          </span>
+          {!isMobile && (
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
+          )}
+        </a>
+      );
+    }
+
+    // Handle internal URLs (including relative paths like /products)
+    return (
+      <Link key={menu.id} to={menuUrl} {...linkProps}>
+        {menu.display_name}
+        {!isMobile && !isActive && (
+          <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
+        )}
+        {!isMobile && isActive && (
+          <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary" />
+        )}
+      </Link>
+    );
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b border-border shadow-sm">
@@ -58,9 +312,7 @@ export const Header: React.FC = () => {
                 alt="Elegant Enterprise Logo"
                 className="w-full h-full object-contain"
                 onError={(e) => {
-                  // Fallback to calendar icon if image fails to load
                   e.currentTarget.style.display = "none";
-                  // e.currentTarget.nextElementSibling.style.display = "flex";
                 }}
               />
               <div className="w-full h-full bg-gradient-primary rounded-lg items-center justify-center hidden">
@@ -70,18 +322,21 @@ export const Header: React.FC = () => {
             <span className="text-xl font-bold gradient-text hidden sm:block"></span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation - Dynamic Menus */}
           <nav className="hidden md:flex items-center space-x-8">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className="text-foreground/80 hover:text-primary transition-colors duration-200 font-medium relative group"
-              >
-                {item.label}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
-              </Link>
-            ))}
+            {isLoadingMenus ? (
+              // Loading skeleton
+              <div className="flex space-x-8">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-5 w-16 bg-muted animate-pulse rounded"
+                  />
+                ))}
+              </div>
+            ) : (
+              dynamicMenus.map((menu) => renderDynamicMenuItem(menu, false))
+            )}
           </nav>
 
           {/* Search Bar */}
@@ -158,9 +413,6 @@ export const Header: React.FC = () => {
               </DropdownMenu>
             ) : (
               <div className="flex items-center space-x-2">
-                {/* <Button variant="ghost" asChild>
-                  <Link to="/auth">Sign In</Link>
-                </Button> */}
                 <Button asChild className="btn-glow">
                   <Link to="/auth?tab=signup">Sign In</Link>
                 </Button>
@@ -197,20 +449,23 @@ export const Header: React.FC = () => {
           </form>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation - Dynamic Menus */}
         {isMenuOpen && (
           <div className="md:hidden border-t border-border py-4">
             <nav className="flex flex-col space-y-4">
-              {navigationItems.map((item) => (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {isLoadingMenus ? (
+                // Loading skeleton for mobile
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="h-5 w-24 bg-muted animate-pulse rounded"
+                    />
+                  ))}
+                </div>
+              ) : (
+                dynamicMenus.map((menu) => renderDynamicMenuItem(menu, true))
+              )}
             </nav>
           </div>
         )}

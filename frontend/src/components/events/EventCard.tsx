@@ -19,6 +19,17 @@ type EventImage = {
   alt_text?: string;
 };
 
+type ActionButton = {
+  id: number;
+  name: string;
+  sharable_link: string;
+  background_color: string;
+  font_color: string;
+  Is_visible: boolean;
+  seq: number;
+  open_in_new_window: boolean;
+};
+
 export const EventCard: React.FC<EventCardProps> = ({
   event,
   className = "",
@@ -38,6 +49,12 @@ export const EventCard: React.FC<EventCardProps> = ({
 
   const primaryImage =
     imagesArray.find((img) => img.is_primary) || imagesArray[0];
+
+  // Get action buttons from API
+  // @ts-ignore
+  const actionButtons: ActionButton[] = (event._action_buttons || [])
+    .filter((button: ActionButton) => button.Is_visible)
+    .sort((a: ActionButton, b: ActionButton) => a.seq - b.seq);
 
   const formatEventDate = (timestamp: number) =>
     format(new Date(timestamp * 1000), "MMM dd, yyyy");
@@ -107,7 +124,7 @@ export const EventCard: React.FC<EventCardProps> = ({
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
           <div className="flex gap-2">
             <Button size="sm" asChild className="btn-glow">
-              <Link to={`/events/${event.id}`}>View Details</Link>
+              <Link to={`/items/${event.id}`}>View Details</Link>
             </Button>
             {eventDetails?.url && (
               <Button size="sm" variant="secondary" asChild>
@@ -171,49 +188,63 @@ export const EventCard: React.FC<EventCardProps> = ({
         </div>
 
         {/* Tags - Both SEO_Tags and tags */}
-        {(event.SEO_Tags || event.tags) && (
-          <div className="flex flex-wrap gap-1 mt-3">
-            {/* SEO Tags
-            {event.SEO_Tags &&
-              event.SEO_Tags.split(",")
-                .slice(0, 3)
-                .map((tag, i) => (
-                  <Badge
-                    key={`seo-${i}`}
-                    variant="outline"
-                    className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                  >
-                    {tag.trim()}
-                  </Badge>
-                ))} */}
 
-            {/* Regular Tags */}
-            {event.tags &&
-              event.tags
-                .split(",")
-                .slice(0, 3)
-                .map((tag, i) => (
-                  <Badge
-                    key={`tag-${i}`}
-                    variant="outline"
-                    className="text-xs bg-green-50 text-green-700 border-green-200"
-                  >
-                    {tag.trim()}
-                  </Badge>
-                ))}
-          </div>
-        )}
+        {
+          // @ts-ignore
+          (event.SEO_Tags || event.tags) && (
+            <div className="flex flex-wrap gap-1 mt-3">
+              {/* Regular Tags */}
+              {
+                // @ts-ignore
+                event.tags &&
+                  // @ts-ignore
+                  event.tags
+                    .split(",")
+                    .slice(0, 3)
+                    .map((tag, i) => (
+                      <Badge
+                        key={`tag-${i}`}
+                        variant="outline"
+                        className="text-xs bg-green-50 text-green-700 border-green-200"
+                      >
+                        {tag.trim()}
+                      </Badge>
+                    ))
+              }
+            </div>
+          )
+        }
       </CardContent>
 
       <CardFooter className="px-6 pb-6 pt-0">
         <div className="flex w-full gap-2">
-          {/* <Button variant="outline" className="flex-1" asChild>
-            <Link to={`/events/${event.id}`}>View Event</Link>
-          </Button> */}
-          {getEventStatus() === "upcoming" && (
-            <Button className="flex-1 btn-glow" asChild>
-              <Link to={`/get-pass/${event.id}`}>Get Pass</Link>
-            </Button>
+          {/* Dynamic Action Buttons - Only show for upcoming events */}
+          {getEventStatus() === "upcoming" && actionButtons.length > 0 && (
+            <>
+              {actionButtons.map((button) => (
+                <Button
+                  key={button.id}
+                  className="flex-1 btn-glow"
+                  style={{
+                    backgroundColor: button.background_color,
+                    color: button.font_color,
+                  }}
+                  asChild
+                >
+                  <a
+                    href={button.sharable_link}
+                    target={button.open_in_new_window ? "_blank" : "_self"}
+                    rel={
+                      button.open_in_new_window
+                        ? "noopener noreferrer"
+                        : undefined
+                    }
+                  >
+                    {button.name}
+                  </a>
+                </Button>
+              ))}
+            </>
           )}
         </div>
       </CardFooter>

@@ -127,3 +127,30 @@ export interface AppState {
   loading: boolean;
   error: string | null;
 }
+
+export interface MenuItem {
+  id: string;
+  created_at: number;
+  shops_id: string;
+  name: string;
+  seq: number;
+  display_name: string;
+  is_visible: boolean;
+  custom_url: string;
+  Open_new_window: boolean;
+}
+
+// export interface MenuItem {
+//   id: string;
+//   created_at: number;
+//   shops_id: string;
+//   name: string;
+//   seq: number;
+//   display_name: string;
+//   is_visible: boolean;
+//   custom_url: string;
+//   Open_new_window: boolean;
+//   _shops?: {
+//     custom_domain: string;
+//   };
+// }
