@@ -18,6 +18,49 @@ import { Badge } from "@/components/ui/badge";
 import { Event } from "@/types";
 import { apiService } from "@/services/api";
 import heroImage from "@/assets/hero-events.jpg";
+interface Shop_info {
+     id: number;
+     created_at?: number;
+     shops_id: number;
+     title: string;
+     description: string;
+     seo_script_text: string;
+     header_1: string;
+     header_1_font_color : string;
+     header_2: string;
+     header_2_font_color: string;
+     header_3 :: string;
+     header_3_font_color: string;
+     header_4: string;
+     header_4_font_color: string;
+     header_5: string;
+     header_5_font_color: string;
+     header_6: string;
+     header_font_color: string;
+}
+ interface ApiResponse {
+  items?: ShopInfo[];
+ }
+const App: React.FC = () => {
+  const [shops, setShops] = useState<Shop_info[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response: ApiResponse = await apiService.getShopinfo();
+        setShops(response.items ?? []);
+      } catch (err: any) {
+        setError(err.message || 'Failed to fetch shop info');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
 
 const Index = () => {
   const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
@@ -40,6 +83,7 @@ const Index = () => {
     { label: "Cities Covered", value: "100+", icon: MapPin },
   ];
 
+ 
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -56,7 +100,7 @@ const Index = () => {
 
         <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 tracking-tight">
-             Discover best {" "}
+             {shop.title} Discover best {" "}
             <span className="gradient-text bg-gradient-hero bg-clip-text text-transparent">
               products and services
             </span>
