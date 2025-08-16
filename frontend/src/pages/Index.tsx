@@ -30,6 +30,40 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 const [shops, setShops] = useState<Shop[]>([]);
+   // Load all events and unique shops
+  useEffect(() => {
+    const loadEventsAndShops = async () => {
+      try {
+        setError("");
+        const response: ApiResponse | Event[] = await apiService.getEvents();
+
+        // Handle both response formats - with items array or direct array
+        const events = Array.isArray(response)
+          ? response
+          : response.items || [];
+
+        setFeaturedEvents(events.slice(0, 100));
+
+        // Extract unique shops from events
+        const uniqueShops: Shop[] = Array.from(
+          new Map(
+            events
+              .filter((e) => e.shops_id && e._shops?.name) // Filter out events without shop data
+              .map((e) => [e.shops_id, { id: e.shops_id, name: e._shops.name }])
+          ).values()
+        );
+
+        setShops(uniqueShops);
+      } catch (error) {
+        console.error("Failed to load featured events:", error);
+        setError("Failed to load events. Please try refreshing the page.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadEventsAndShops();
+  }, []);
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
