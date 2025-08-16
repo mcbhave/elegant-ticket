@@ -23,7 +23,10 @@ interface Shop {
   id: string;
   name: string;
 }
-
+interface ApiResponse {
+  items?: Event[];
+  [key: string]: any;
+}
 
 const Index = () => {
   const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
