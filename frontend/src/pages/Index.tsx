@@ -60,7 +60,7 @@ const App: React.FC = () => {
 
     fetchData();
   }, []);
-
+};
 
 const Index = () => {
   const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
