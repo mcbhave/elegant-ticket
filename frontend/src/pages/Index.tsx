@@ -47,7 +47,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-   const [shops, setShops] = useState<Shop_info[]>([]);
+   const [Shop_info, setShops] = useState<Shop_info[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,7 +98,7 @@ const Index = () => {
 
         <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 tracking-tight">
-             {shops.title} Discover best {" "}
+             Discover best {" "} {Shop_info.title} 
             <span className="gradient-text bg-gradient-hero bg-clip-text text-transparent">
               products and services
             </span>
