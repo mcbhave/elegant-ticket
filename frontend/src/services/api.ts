@@ -207,7 +207,7 @@ class ApiService {
       const response = await axios.get(`${this.baseURL}/auth/me`, {
         headers: {
           "X-Elegant-Auth": this.elegantAuthKey,
-          "X-Elegant-Domain": this.elegantDomain,
+          "X-Elegant-Domain": window.location.hostname,
           "Content-Type": "application/json",
         },
         timeout: 10000,
