@@ -18,13 +18,18 @@ import { Badge } from "@/components/ui/badge";
 import { Event } from "@/types";
 import { apiService } from "@/services/api";
 import heroImage from "@/assets/hero-events.jpg";
-const [shops, setShops] = useState<Shop[]>([]);
+
+interface Shop {
+  id: string;
+  name: string;
+}
+
 
 const Index = () => {
   const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-
+const [shops, setShops] = useState<Shop[]>([]);
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
