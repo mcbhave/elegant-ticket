@@ -309,6 +309,17 @@ class ApiService {
     this.clearStoredToken();
   }
 
+  // ===== SHOP (Now using public auth token automatically) =====
+  async getShopInfo(): Promise<Shops_info[]> {
+    try {
+      const res = await this.api.get(`/shops_info`);
+      return res.data;
+    } catch (err) {
+      console.error("Failed to fetch shops info", err);
+      return [];
+    }
+  }
+  
   // ===== EVENTS (Now using public auth token automatically) =====
   async getEvents(filters?: EventFilters): Promise<Event[]> {
     try {
