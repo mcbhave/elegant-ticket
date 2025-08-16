@@ -54,8 +54,8 @@ const Index = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response: ApiResponse = await apiService.getShopinfo();
-        setShops(response.items ?? []);
+        const shopinfo = await apiService.getShopinfo();
+        setShops(shopinfo);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch shop info');
       } finally {
