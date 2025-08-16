@@ -310,7 +310,7 @@ class ApiService {
   }
 
   // ===== SHOP (Now using public auth token automatically) =====
-  async getShopInfo(): Promise<Shops_info[]> {
+  async getShopInfo(): Promise<Shops_info | null> {
     try {
       const res = await this.api.get(`/shops_info`);
       return res.data;
