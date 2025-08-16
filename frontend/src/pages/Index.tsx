@@ -26,10 +26,10 @@ interface Shop_info {
      description: string;
      seo_script_text: string;
      header_1: string;
-     header_1_font_color : string;
+     header_1_font_color: string;
      header_2: string;
      header_2_font_color: string;
-     header_3 :: string;
+     header_3 : string;
      header_3_font_color: string;
      header_4: string;
      header_4_font_color: string;
