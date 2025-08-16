@@ -41,8 +41,13 @@ interface Shop_info {
  interface ApiResponse {
   items?: ShopInfo[];
  }
-const App: React.FC = () => {
-  const [shops, setShops] = useState<Shop_info[]>([]);
+
+const Index = () => {
+  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+   const [shops, setShops] = useState<Shop_info[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,13 +65,6 @@ const App: React.FC = () => {
 
     fetchData();
   }, []);
-};
-
-const Index = () => {
-  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
