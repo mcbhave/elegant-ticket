@@ -217,16 +217,16 @@ class ApiService {
         response.headers["X-Elegant-Domain"];
       if (responseDomain) {
         this.currentDomain = responseDomain;
-        console.log("Domain received from server:", responseDomain);
+        // console.log("Domain received from server:", responseDomain);
       }
 
       if (response.data?.authToken) {
         this.publicAuthToken = response.data.authToken;
-        console.log("Public auth token obtained successfully");
+        // console.log("Public auth token obtained successfully");
         return this.publicAuthToken;
       }
     } catch (error) {
-      console.error("Failed to get public auth token:", error);
+      // console.error("Failed to get public auth token:", error);
     }
 
     return null;
