@@ -106,6 +106,7 @@ class ApiService {
   private baseURL = "https://x8ki-letl-twmt.n7.xano.io/api:2duosZ1Y";
   private elegantAuthKey = "e3f9c2a4-7b1e-4d3a-9c8f-2a6f9e3b1d7c";
   private publicAuthToken: string | null = null;
+  private currentDomain: string | null = null; // Store domain from response header
 
   constructor() {
     this.api = axios.create({
@@ -210,9 +211,18 @@ class ApiService {
         timeout: 10000,
       });
 
+      // Extract domain from response headers
+      const responseDomain =
+        response.headers["x-elegant-domain"] ||
+        response.headers["X-Elegant-Domain"];
+      if (responseDomain) {
+        this.currentDomain = responseDomain;
+        console.log("Domain received from server:", responseDomain);
+      }
+
       if (response.data?.authToken) {
         this.publicAuthToken = response.data.authToken;
-        // console.log("Public auth token obtained successfully");
+        console.log("Public auth token obtained successfully");
         return this.publicAuthToken;
       }
     } catch (error) {
@@ -220,6 +230,16 @@ class ApiService {
     }
 
     return null;
+  }
+
+  // ===== DOMAIN GETTER =====
+  public getCurrentDomain(): string | null {
+    return this.currentDomain;
+  }
+
+  // Method to manually set domain (if needed)
+  public setCurrentDomain(domain: string): void {
+    this.currentDomain = domain;
   }
 
   // ===== TOKEN STORAGE (for user authentication) =====
