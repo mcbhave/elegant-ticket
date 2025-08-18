@@ -104,7 +104,7 @@ interface ProductFilters {
 class ApiService {
   private api: AxiosInstance;
   private baseURL = "https://x8ki-letl-twmt.n7.xano.io/api:2duosZ1Y";
-  private elegantAuthKey = "e3f9c2a4-7b1e-4d3a-9c8f-2a6f9e3b1d7c";
+  private elegantAuthKey = "9a6f1d3e-2c4b-4f8a-8e7d-3b2c9f1a6d5e";
   private publicAuthToken: string | null = null;
   private currentDomain: string | null = null; // Store domain from response header
 
@@ -120,9 +120,10 @@ class ApiService {
     // Request interceptor to handle tokens
     this.api.interceptors.request.use(
       async (config) => {
-        // Add domain header
+        // Add domain header with port (ONLY CHANGE from your working code)
         if (typeof window !== "undefined") {
-          config.headers["X-Elegant-Domain"] = window.location.hostname;
+          const domain = this.extractDomainWithPort();
+          config.headers["X-Elegant-Domain"] = domain;
         }
 
         // For events, reviews, menus, and products endpoints, use public auth token
@@ -149,7 +150,8 @@ class ApiService {
       },
       (error) => Promise.reject(error)
     );
-    // Handle 401 errors
+
+    // Handle 401 errors (keeping your exact working logic)
     this.api.interceptors.response.use(
       (response) => response,
       async (error) => {
@@ -187,6 +189,24 @@ class ApiService {
     this.initializePublicAuth();
   }
 
+  // ===== DOMAIN EXTRACTION (NEW METHOD) =====
+  private extractDomainWithPort(): string {
+    if (typeof window === "undefined") return "";
+
+    let domain = window.location.hostname;
+
+    // Add port if it's not the default ports (80 for http, 443 for https)
+    if (
+      window.location.port &&
+      window.location.port !== "80" &&
+      window.location.port !== "443"
+    ) {
+      domain += `:${window.location.port}`;
+    }
+
+    return domain;
+  }
+
   // ===== PUBLIC AUTH TOKEN =====
   private async initializePublicAuth(): Promise<void> {
     try {
@@ -203,11 +223,19 @@ class ApiService {
     }
 
     try {
+      // Add domain header to auth/me request as well
+      const headers: Record<string, string> = {
+        "X-Elegant-Auth": this.elegantAuthKey,
+        "Content-Type": "application/json",
+      };
+
+      // Add domain header to auth/me request
+      if (typeof window !== "undefined") {
+        headers["X-Elegant-Domain"] = this.extractDomainWithPort();
+      }
+
       const response = await axios.get(`${this.baseURL}/auth/me`, {
-        headers: {
-          "X-Elegant-Auth": this.elegantAuthKey,
-          "Content-Type": "application/json",
-        },
+        headers,
         timeout: 10000,
       });
 
@@ -217,16 +245,16 @@ class ApiService {
         response.headers["X-Elegant-Domain"];
       if (responseDomain) {
         this.currentDomain = responseDomain;
-        // console.log("Domain received from server:", responseDomain);
+        console.log("Domain received from server:", responseDomain);
       }
 
       if (response.data?.authToken) {
         this.publicAuthToken = response.data.authToken;
-        // console.log("Public auth token obtained successfully");
+        console.log("Public auth token obtained successfully");
         return this.publicAuthToken;
       }
     } catch (error) {
-      // console.error("Failed to get public auth token:", error);
+      console.error("Failed to get public auth token:", error);
     }
 
     return null;
