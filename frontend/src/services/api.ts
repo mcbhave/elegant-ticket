@@ -280,7 +280,7 @@ class ApiService {
 
     let domain = window.location.hostname;
     //it dosent detect port on localhost i will remove it after some time
-    domain += `:${window.location.port}`;
+    // domain += `:${window.location.port}`;
 
     return domain;
   }
