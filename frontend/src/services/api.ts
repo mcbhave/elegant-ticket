@@ -8,7 +8,7 @@ import {
   EventFilters,
 } from "@/types";
 
-// Add Review interface
+//Review interface
 interface Review {
   id: string;
   created_at: number;
@@ -26,7 +26,7 @@ interface Review {
     name: string;
   };
 }
-
+// Reviews Response
 interface ReviewsResponse {
   itemsReceived: number;
   curPage: number;
@@ -43,7 +43,7 @@ interface ReviewsResponse {
   }[];
 }
 
-// Add dynamic menu interface
+// dynamic menu interface
 interface DynamicMenu {
   id: number;
   created_at: number;
@@ -54,9 +54,26 @@ interface DynamicMenu {
   is_visible: boolean;
   custom_url: string;
   Open_new_window: boolean;
+  category: string;
+  placement: string;
+  image_url: string;
+  background_color: string;
+  font_color: string;
+  _shop_info: Shops_Info; // Nested object
 }
 
-//products
+interface Shops_Info {
+  id: number;
+  shops_id: string;
+  title: string;
+  description: string;
+  logo: string;
+  menu_header_background_color: string;
+  menu_footer_background_color: string;
+  copyright_text: string;
+}
+
+// products Interface
 interface Product {
   id: number;
   shops_id: string;
@@ -101,6 +118,68 @@ interface ProductFilters {
   item_type?: string;
 }
 
+// shop info interface
+interface ShopInfo {
+  id: number;
+  created_at: number;
+  shops_id: string;
+  title: string;
+  description: string;
+  logo: string;
+  seo_script_text: string | null;
+  header_1: string;
+  header_1_font_color: string;
+  header_2: string;
+  header_2_font_color: string;
+  header_3: string;
+  header_3_font_color: string;
+  header_4: string;
+  header_4_font_color: string;
+  header_5: string;
+  header_5_font_color: string;
+  header_6: string;
+  header_font_color: string;
+}
+
+interface SearchResponse {
+  itemsReceived: number;
+  curPage: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  offset: number;
+  perPage: number;
+  items: Event[];
+}
+
+// Related Items Interface
+interface RelatedItem {
+  id: number;
+  created_at: number;
+  shops_id: string;
+  items_id: number;
+  related_items_id: number;
+  related_item_type: string;
+  seq: number;
+  title: string;
+  description: string;
+  display_image: string;
+  open_in_new_window: boolean;
+  is_visible: boolean;
+}
+
+// Related Items Response Interface
+interface RelatedItemsResponse {
+  itemsReceived: number;
+  curPage: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  offset: number;
+  perPage: number;
+  itemsTotal: number;
+  pageTotal: number;
+  items: RelatedItem[];
+}
+
 class ApiService {
   private api: AxiosInstance;
   private baseURL = "https://x8ki-letl-twmt.n7.xano.io/api:2duosZ1Y";
@@ -111,7 +190,7 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: this.baseURL,
-      timeout: 10000,
+      timeout: 30000, // Increased from 10000 to 30000 (30 seconds)
       headers: {
         "Content-Type": "application/json",
       },
@@ -131,7 +210,10 @@ class ApiService {
           config.url?.includes("/events") ||
           config.url?.includes("/reviews") ||
           config.url?.includes("/menus") ||
-          config.url?.includes("/products")
+          config.url?.includes("/products") ||
+          config.url?.includes("/shops_info") ||
+          config.url?.includes("/items/") ||
+          config.url?.includes("/related_items")
         ) {
           const publicToken = await this.getPublicAuthToken();
           if (publicToken) {
@@ -161,7 +243,10 @@ class ApiService {
             error.config?.url?.includes("/events") ||
             error.config?.url?.includes("/reviews") ||
             error.config?.url?.includes("/menus") ||
-            error.config?.url?.includes("/products")
+            error.config?.url?.includes("/products") ||
+            error.config?.url?.includes("/shops_info") ||
+            error.config?.url?.includes("/items/") ||
+            error.config?.url?.includes("/related_items")
           ) {
             this.publicAuthToken = null; // Clear cached public token
             // Retry with fresh public token
@@ -189,20 +274,13 @@ class ApiService {
     this.initializePublicAuth();
   }
 
-  // ===== DOMAIN EXTRACTION (NEW METHOD) =====
+  // ===== DOMAIN EXTRACTION for testing=====
   private extractDomainWithPort(): string {
     if (typeof window === "undefined") return "";
 
     let domain = window.location.hostname;
-
-    // Add port if it's not the default ports (80 for http, 443 for https)
-    if (
-      window.location.port &&
-      window.location.port !== "80" &&
-      window.location.port !== "443"
-    ) {
-      domain += `:${window.location.port}`;
-    }
+    //it dosent detect port on localhost i will remove it after some time
+    domain += `:${window.location.port}`;
 
     return domain;
   }
@@ -236,7 +314,7 @@ class ApiService {
 
       const response = await axios.get(`${this.baseURL}/auth/me`, {
         headers,
-        timeout: 10000,
+        timeout: 30000, // Increased timeout for auth as well
       });
 
       // Extract domain from response headers
@@ -375,13 +453,35 @@ class ApiService {
   }
 
   async getEventById(id: number | string): Promise<Event | null> {
-    try {
-      const res = await this.api.get(`/events/${id}`);
-      return res.data;
-    } catch (err) {
-      console.error("Failed to fetch event", err);
-      return null;
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        const res = await this.api.get(`/events/${id}`, {
+          timeout: 45000, // 45 seconds for individual event requests
+        });
+        return res.data;
+      } catch (err: any) {
+        retryCount++;
+
+        if (err.code === "ECONNABORTED" && retryCount < maxRetries) {
+          console.warn(
+            `Attempt ${retryCount} failed for event ${id}, retrying...`
+          );
+          // Wait before retrying (exponential backoff)
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * retryCount)
+          );
+          continue;
+        }
+
+        console.error("Failed to fetch event", err);
+        return null;
+      }
     }
+
+    return null;
   }
 
   // ===== REVIEWS =====
@@ -420,6 +520,15 @@ class ApiService {
     } catch (err) {
       console.error("Failed to fetch dynamic menus", err);
       return [];
+    }
+  }
+  async getShopById(shopId?: string): Promise<any> {
+    try {
+      const res = await this.api.get(`/shops/${shopId}`);
+      return res.data;
+    } catch (err) {
+      console.error("Failed to fetch shop", err);
+      return null;
     }
   }
 
@@ -464,6 +573,53 @@ class ApiService {
     }
   }
 
+  // shop info
+
+  async getShopsInfo(): Promise<ShopInfo | null> {
+    try {
+      const res = await this.api.get("/shops_info");
+      return res.data;
+    } catch (err) {
+      console.error("Failed to fetch shops info", err);
+      return null;
+    }
+  }
+
+  // ===== SEARCH =====
+  async searchItems(
+    query: string,
+    shopId?: string
+  ): Promise<SearchResponse | null> {
+    try {
+      // Build the search URL
+      let searchUrl = `/items/${encodeURIComponent(query)}`;
+
+      // Add shopId as query parameter if provided
+      if (shopId) {
+        searchUrl += `?shops_id=${shopId}`;
+      }
+
+      const res = await this.api.get(searchUrl);
+      return res.data;
+    } catch (err) {
+      console.error("Failed to search items", err);
+      return null;
+    }
+  }
+
+  //related items
+  async getRelatedItems(
+    itemId: number | string
+  ): Promise<RelatedItemsResponse | null> {
+    try {
+      const res = await this.api.get(`/related_items/${itemId}`);
+      return res.data;
+    } catch (err) {
+      console.error("Failed to fetch related items", err);
+      return null;
+    }
+  }
+
   // ===== UTILITY =====
   // Method to manually refresh public auth token if needed
   async refreshPublicAuthToken(): Promise<boolean> {
@@ -473,5 +629,6 @@ class ApiService {
   }
 }
 
+export type { RelatedItem, RelatedItemsResponse };
 export const apiService = new ApiService();
 export default apiService;

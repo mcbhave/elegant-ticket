@@ -23,7 +23,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Event } from "@/types";
-import { apiService } from "@/services/api";
+// import { apiService } from "@/services/api";
+import { apiService, RelatedItem, RelatedItemsResponse } from "@/services/api";
+
 // import { MenuItem } from "@/types";
 
 // Review interface for API data
@@ -69,6 +71,8 @@ const EventDetails = () => {
   const [reviewsData, setReviewsData] = useState<ReviewsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
+  const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
+
   // const [menus, setMenus] = useState<MenuItem[]>([]);
 
   // useEffect(() => {
@@ -103,15 +107,15 @@ const EventDetails = () => {
               );
             }
 
-            // Fetch related events (same shop)
-            const allEvents = await apiService.getEvents();
-            const related = allEvents
-              .filter(
-                (e) =>
-                  e.id !== eventData.id && e._shops?.id === eventData._shops?.id
-              )
-              .slice(0, 3);
-            setRelatedEvents(related);
+            // Fetch related items for this event
+            const relatedItemsResponse = await apiService.getRelatedItems(
+              eventData.id
+            );
+            if (relatedItemsResponse) {
+              setRelatedItems(
+                relatedItemsResponse.items.filter((item) => item.is_visible)
+              );
+            }
           }
         }
       } catch (error) {
@@ -666,31 +670,83 @@ const EventDetails = () => {
         </div>
       </section>
 
-      {/* Related Events */}
-      {relatedEvents.length > 0 && (
-        <section className="py-16 bg-muted/30">
+      {/* Related Items */}
+      {relatedItems.length > 0 && (
+        <section className="py-16 bg-background">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold mb-4">Related Events</h2>
+              <h2 className="text-4xl font-bold mb-4">Related Items</h2>
               <p className="text-xl text-muted-foreground">
-                More events from {event._shops?.name}
+                Items related to this event
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {relatedEvents.map((relatedEvent) => (
-                <EventCard key={relatedEvent.id} event={relatedEvent} />
+              {relatedItems.map((item) => (
+                <Card
+                  key={item.id}
+                  className="bg-gradient-card border-0 shadow-card hover:shadow-lg transition-shadow"
+                >
+                  <div className="aspect-video relative overflow-hidden rounded-t-lg">
+                    <img
+                      src={
+                        item.display_image ||
+                        "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&auto=format&fit=crop&q=80"
+                      }
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src =
+                          "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&auto=format&fit=crop&q=80";
+                      }}
+                    />
+                    {item.related_item_type && (
+                      <Badge className="absolute top-3 left-3 bg-primary/90 text-white">
+                        {item.related_item_type}
+                      </Badge>
+                    )}
+                  </div>
+                  <CardContent className="p-6">
+                    <h3 className="font-bold text-lg mb-2 line-clamp-2">
+                      {item.title}
+                    </h3>
+                    <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
+                      {item.description}
+                    </p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(item.created_at).toLocaleDateString()}
+                      </span>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link
+                          to={`/${item.related_item_type.toLowerCase()}s/${
+                            item.related_items_id
+                          }`}
+                          target={item.open_in_new_window ? "_blank" : "_self"}
+                          rel={
+                            item.open_in_new_window
+                              ? "noopener noreferrer"
+                              : undefined
+                          }
+                        >
+                          View Details
+                          <ArrowRight className="ml-2 w-4 h-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
 
-            <div className="text-center mt-8">
-              <Button variant="outline" asChild>
-                <Link to="/events">
-                  View All Events
+            {relatedItems.length > 6 && (
+              <div className="text-center mt-8">
+                <Button variant="outline">
+                  View All Related Items
                   <ArrowRight className="ml-2 w-4 h-4" />
-                </Link>
-              </Button>
-            </div>
+                </Button>
+              </div>
+            )}
           </div>
         </section>
       )}

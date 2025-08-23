@@ -17,19 +17,41 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Event } from "@/types";
 import { apiService } from "@/services/api";
-import heroImage from "@/assets/hero-events.jpg";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [shopInfo, setShopInfo] = useState<any>(null);
+  const [shopInfoLoading, setShopInfoLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchShopInfo = async () => {
+      try {
+        const info = await apiService.getShopsInfo();
+        setShopInfo(info);
+
+        if (info?.title) {
+          document.title = info.title;
+        }
+      } catch (error) {
+        console.error("Failed to fetch shop info:", error);
+      } finally {
+        setShopInfoLoading(false);
+      }
+    };
+
+    fetchShopInfo();
+  }, []);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      window.location.href = `/events?search=${encodeURIComponent(
-        searchQuery
-      )}`;
+      navigate(`/search/${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery(""); // Clear the search input
     }
   };
 
@@ -54,25 +76,48 @@ const Index = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent" />
 
         <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 tracking-tight">
-            Discover Amazing{" "}
-            <span className="gradient-text bg-gradient-hero bg-clip-text text-transparent">
-              Events
-            </span>
+          {/* Main Heading - Use header_1 */}
+          <h1
+            className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 tracking-tight"
+            style={{
+              color: shopInfo?.header_1_font_color || "#ffffff",
+            }}
+          >
+            {shopInfoLoading ? "Loading..." : shopInfo?.header_1}
           </h1>
 
-          <p className="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto leading-relaxed">
-            From intimate concerts to grand festivals, find and join thousands
-            of incredible events happening around the world.
+          {/* Description - Use shop description */}
+          <p
+            className="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto leading-relaxed"
+            style={{
+              color: shopInfo?.header_2_font_color || "#ffffff",
+            }}
+          >
+            {shopInfoLoading ? "Loading description..." : shopInfo?.description}
           </p>
 
-          {/* Hero Search */}
+          {/* Secondary Header - Use header_2 if different from header_1 */}
+          {shopInfo?.header_2 && shopInfo?.header_2 !== shopInfo?.header_1 && (
+            <h2
+              className="text-2xl md:text-3xl mb-6 font-semibold"
+              style={{
+                color: shopInfo?.header_2_font_color || "#ffffff",
+              }}
+            >
+              {shopInfo.header_2}
+            </h2>
+          )}
+
+          {/* Search Form */}
           <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-8">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/60 w-5 h-5" />
               <Input
                 type="search"
-                placeholder="Search for events, artists, or venues..."
+                placeholder={
+                  shopInfo?.header_4 ||
+                  "Search for events, products, or services..."
+                }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-12 pr-32 py-4 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:bg-white/20 backdrop-blur-sm"
@@ -99,14 +144,6 @@ const Index = () => {
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
             </Button>
-            {/* <Button
-              size="lg"
-              variant="outline"
-              asChild
-              className="border-white/20 text-white hover:bg-white/10 backdrop-blur-sm"
-            >
-              <Link to="/auth?tab=signup">Join EventHub</Link>
-            </Button> */}
           </div>
         </div>
 
@@ -142,7 +179,9 @@ const Index = () => {
       <section className="py-20 bg-muted/30">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">Popular Categories</h2>
+            <h2 className="text-4xl font-bold mb-4">
+              {shopInfo?.header_6 || "Popular Categories"}
+            </h2>
             <p className="text-xl text-muted-foreground">
               Find events that match your interests
             </p>
@@ -198,6 +237,15 @@ const Index = () => {
 
       {/* Footer */}
       <Footer />
+
+      {/* SEO Script Injection */}
+      {shopInfo?.seo_script_text && (
+        <div
+          dangerouslySetInnerHTML={{
+            __html: shopInfo.seo_script_text,
+          }}
+        />
+      )}
     </div>
   );
 };

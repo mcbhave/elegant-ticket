@@ -1,93 +1,4 @@
-// Helper function to determine if URL is external
-const isExternalUrl = (url: string) => {
-  if (!url) return false;
-  return (
-    url.startsWith("http://") ||
-    url.startsWith("https://") ||
-    url.startsWith("//")
-  );
-};
-
-// Helper function to get the correct URL for a menu item
-const getMenuUrl = (menu: DynamicMenu) => {
-  if (menu.name.toLowerCase() === "home") {
-    return "/";
-  }
-
-  // If custom_url exists, use it as is
-  if (menu.custom_url) {
-    return menu.custom_url;
-  }
-
-  // Fallback to name-based URL
-  return `/${menu.name.toLowerCase()}`;
-};
-
-// Helper function to determine if menu should open in new window
-const shouldOpenInNewWindow = (menu: DynamicMenu) => {
-  // If explicitly set to open in new window
-  if (menu.Open_new_window) return true;
-
-  // If it's an external URL, open in new window
-  if (menu.custom_url && isExternalUrl(menu.custom_url)) return true;
-
-  return false;
-};
-
-// Render dynamic menu item - UPDATED VERSION
-const renderDynamicMenuItem = (menu: DynamicMenu, isMobile = false) => {
-  const menuUrl = getMenuUrl(menu);
-  const openInNewWindow = shouldOpenInNewWindow(menu);
-  const isExternal = isExternalUrl(menuUrl);
-
-  // For internal URLs, check if active
-  const isActive = !isExternal && isMenuItemActive(menuUrl, menu.name);
-
-  const baseClasses = isMobile
-    ? "text-foreground hover:text-primary transition-colors duration-200 font-medium block py-2"
-    : "text-foreground/80 hover:text-primary transition-colors duration-200 font-medium relative group";
-
-  const linkProps = {
-    className: baseClasses,
-    onClick: isMobile ? () => setIsMenuOpen(false) : undefined,
-  };
-
-  // Handle external URLs or URLs that should open in new window
-  if (openInNewWindow || isExternal) {
-    return (
-      <a
-        key={menu.id}
-        href={menuUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        {...linkProps}
-      >
-        <span className="flex items-center">
-          {menu.display_name}
-          {!isMobile && <ExternalLink className="w-3 h-3 ml-1" />}
-        </span>
-        {!isMobile && (
-          <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
-        )}
-      </a>
-    );
-  }
-
-  // Handle internal URLs (including relative paths like /products)
-  return (
-    <Link key={menu.id} to={menuUrl} {...linkProps}>
-      {menu.display_name}
-      {!isMobile && !isActive && (
-        <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
-      )}
-      {!isMobile && isActive && (
-        <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary" />
-      )}
-    </Link>
-  );
-};
-
-// Complete updated Header component
+// Complete updated Header component with full dynamic functionality
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -124,56 +35,74 @@ interface DynamicMenu {
   is_visible: boolean;
   custom_url: string;
   Open_new_window: boolean;
+  category: string;
+  placement: string;
+  image_url: string;
+  background_color: string;
+  font_color: string;
+  _shop_info: {
+    id: number;
+    shops_id: string;
+    title: string;
+    description: string;
+    logo: string;
+    menu_header_background_color: string;
+    menu_footer_background_color: string;
+    copyright_text: string;
+  };
 }
 
 interface HeaderProps {
   shopId?: string;
 }
 
+// Helper function to determine if URL is external
+const isExternalUrl = (url: string) => {
+  if (!url) return false;
+  return (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("//")
+  );
+};
+
+// Helper function to get the correct URL for a menu item
+const getMenuUrl = (menu: DynamicMenu) => {
+  if (menu.name.toLowerCase() === "home") {
+    return "/";
+  }
+
+  // If custom_url exists, use it as is
+  if (menu.custom_url) {
+    return menu.custom_url;
+  }
+
+  // Fallback to name-based URL
+  return `/${menu.name.toLowerCase()}`;
+};
+
+// Helper function to determine if menu should open in new window
+const shouldOpenInNewWindow = (menu: DynamicMenu) => {
+  // If explicitly set to open in new window
+  if (menu.Open_new_window) return true;
+
+  // If it's an external URL, open in new window
+  if (menu.custom_url && isExternalUrl(menu.custom_url)) return true;
+
+  return false;
+};
+
 export const Header: React.FC<HeaderProps> = ({ shopId }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dynamicMenus, setDynamicMenus] = useState<DynamicMenu[]>([]);
   const [isLoadingMenus, setIsLoadingMenus] = useState(true);
+  const [shopInfo, setShopInfo] = useState<DynamicMenu["_shop_info"] | null>(
+    null
+  );
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Helper function to determine if URL is external
-  const isExternalUrl = (url: string) => {
-    if (!url) return false;
-    return (
-      url.startsWith("http://") ||
-      url.startsWith("https://") ||
-      url.startsWith("//")
-    );
-  };
-
-  // Helper function to determine if menu should open in new window
-  const shouldOpenInNewWindow = (menu: DynamicMenu) => {
-    // If explicitly set to open in new window
-    if (menu.Open_new_window) return true;
-
-    // If it's an external URL, open in new window
-    if (menu.custom_url && isExternalUrl(menu.custom_url)) return true;
-
-    return false;
-  };
-
-  // Helper function to get the correct URL for a menu item
-  const getMenuUrl = (menu: DynamicMenu) => {
-    if (menu.name.toLowerCase() === "home") {
-      return "/";
-    }
-
-    // If custom_url exists, use it as is
-    if (menu.custom_url) {
-      return menu.custom_url;
-    }
-
-    // Fallback to name-based URL
-    return `/${menu.name.toLowerCase()}`;
-  };
 
   // Helper function to determine if a menu item is active (only for internal URLs)
   const isMenuItemActive = (menuUrl: string, menuName: string) => {
@@ -188,56 +117,81 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     );
   };
 
-  // Fetch dynamic menus
+  // Fetch dynamic menus and shop info
   useEffect(() => {
-    const fetchDynamicMenus = async () => {
+    const fetchHeaderData = async () => {
       try {
         setIsLoadingMenus(true);
-        const menus = await apiService.getDynamicMenus(shopId);
-        // Filter visible menus and sort by sequence
-        const visibleMenus = menus
-          .filter((menu) => menu.is_visible)
+
+        // Fetch all menus to get shop info and header menus
+        const allMenus = await apiService.getMenus(shopId);
+
+        // Filter for header placement and visible menus
+        const headerMenus = allMenus
+          .filter((menu) => menu.is_visible && menu.placement === "header")
           .sort((a, b) => a.seq - b.seq);
-        setDynamicMenus(visibleMenus);
+
+        setDynamicMenus(headerMenus);
+
+        // Extract shop info from the first menu item (they all have the same shop info)
+        if (headerMenus.length > 0) {
+          setShopInfo(headerMenus[0]._shop_info);
+        }
       } catch (error) {
-        console.error("Failed to load dynamic menus:", error);
+        console.error("Failed to load header data:", error);
         // Fallback to default menus if API fails
         setDynamicMenus([
           {
             id: 1,
             created_at: Date.now(),
-            shops_id: "",
-            name: "events",
-            seq: 1,
-            display_name: "Events",
+            shops_id: shopId || "",
+            name: "home",
+            seq: 0,
+            display_name: "Home",
             is_visible: true,
-            custom_url: "/events",
+            custom_url: "/",
             Open_new_window: false,
-          },
-          {
-            id: 2,
-            created_at: Date.now(),
-            shops_id: "",
-            name: "about",
-            seq: 2,
-            display_name: "About",
-            is_visible: true,
-            custom_url: "/about",
-            Open_new_window: false,
+            category: "Company",
+            placement: "header",
+            image_url: "",
+            background_color: "#ffffff",
+            font_color: "",
+            _shop_info: {
+              id: 1,
+              shops_id: shopId || "",
+              title: "Your Shop",
+              description: "Welcome to our shop",
+              logo: "",
+              menu_header_background_color: "",
+              menu_footer_background_color: "",
+              copyright_text: "© 2025 All rights reserved.",
+            },
           },
         ]);
+
+        // Set default shop info
+        setShopInfo({
+          id: 1,
+          shops_id: shopId || "",
+          title: "Your Shop",
+          description: "Welcome to our shop",
+          logo: "",
+          menu_header_background_color: "",
+          menu_footer_background_color: "",
+          copyright_text: "© 2025 All rights reserved.",
+        });
       } finally {
         setIsLoadingMenus(false);
       }
     };
 
-    fetchDynamicMenus();
+    fetchHeaderData();
   }, [shopId]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/events?search=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/search/${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery("");
     }
   };
@@ -263,6 +217,9 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     const linkProps = {
       className: baseClasses,
       onClick: isMobile ? () => setIsMenuOpen(false) : undefined,
+      style: {
+        color: menu.font_color || undefined,
+      },
     };
 
     // Handle external URLs or URLs that should open in new window
@@ -286,7 +243,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
       );
     }
 
-    // Handle internal URLs (including relative paths like /products)
+    // Handle internal URLs
     return (
       <Link key={menu.id} to={menuUrl} {...linkProps}>
         {menu.display_name}
@@ -300,30 +257,36 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     );
   };
 
+  // Dynamic header styles
+  const headerStyle = {
+    backgroundColor: shopInfo?.menu_header_background_color || undefined,
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b border-border shadow-sm">
+    <header
+      className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b border-border shadow-sm"
+      style={headerStyle}
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center group-hover:shadow-glow transition-all duration-300 p-1">
-              <img
-                src="https://elegantapt.com/wp-content/uploads/2024/04/Elegant_Revised_T_Logo_cropped.png.webp"
-                alt="Elegant Enterprise Logo"
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
-              <div className="w-full h-full bg-gradient-primary rounded-lg items-center justify-center hidden">
-                <Calendar className="w-5 h-5 text-white" />
+            {shopInfo?.logo && (
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center group-hover:shadow-glow transition-all duration-300 p-1">
+                <img
+                  src={shopInfo.logo}
+                  alt={`${shopInfo.title} `}
+                  className="w-full h-full object-contain"
+                />
               </div>
-            </div>
-            <span className="text-xl font-bold gradient-text hidden sm:block"></span>
+            )}
+            <span className="text-xl font-bold gradient-text hidden sm:block">
+              {shopInfo?.title}
+            </span>
           </Link>
 
           {/* Desktop Navigation - Dynamic Menus */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-8 p-10">
             {isLoadingMenus ? (
               // Loading skeleton
               <div className="flex space-x-8">
