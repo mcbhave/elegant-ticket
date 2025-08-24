@@ -13,6 +13,7 @@ import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
 import Products from "./pages/Products";
 import ProductDetails from "./pages/ProductDetails";
+import SearchResults from "./pages/SearchResults";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/items/:id" element={<EventDetails />} />
             <Route path="/products" element={<Products />} />
             <Route path="/productdetails/:id" element={<ProductDetails />} />
+            <Route path="/search/:query" element={<SearchResults />} />
             <Route path="*" element={<Navigate to="/items" replace />} />
           </Routes>
         </BrowserRouter>
