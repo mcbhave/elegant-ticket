@@ -471,8 +471,6 @@ class ApiService {
 
     let domain = window.location.hostname;
 
-    domain += `:${window.location.port}`;
-
     return domain;
   }
 
