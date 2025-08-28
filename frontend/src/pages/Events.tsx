@@ -6,8 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { EventCard } from "@/components/events/EventCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Event } from "@/types";
-import { apiService } from "@/services/api";
+import { apiService, Event } from "@/services/api";
 
 interface Shop {
   id: string;

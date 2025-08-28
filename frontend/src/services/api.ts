@@ -1,12 +1,107 @@
 import axios, { AxiosInstance } from "axios";
-import {
-  User,
-  Event,
-  AuthCredentials,
-  SignupData,
-  MenuItem,
-  EventFilters,
-} from "@/types";
+
+// ===== USER & AUTH TYPES =====
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatar?: string;
+  created_at: string;
+  auth_token?: string;
+}
+
+export interface AuthCredentials {
+  email: string;
+  password: string;
+}
+
+export interface SignupData extends AuthCredentials {
+  name: string;
+}
+
+// ===== LOCATION & SHOP TYPES =====
+export interface LocationPoint {
+  latitude: number;
+  longitude: number;
+}
+
+export interface Shop {
+  id: string;
+  name: string;
+  logo?: string;
+  description?: string;
+  website?: string;
+}
+
+// ===== EVENT TYPES =====
+export interface EventImage {
+  id: number;
+  items_id: number;
+  file_url: string;
+  alt_text?: string;
+  is_primary?: boolean;
+  display_image?: string;
+}
+
+export interface EventDetails {
+  start_time: number;
+  end_time: number;
+  event_status: "active" | "cancelled" | "postponed" | "completed";
+  url?: string;
+  price: string;
+  currency: string;
+  performer_name: string;
+  organizer_name: string;
+  address: string;
+  location: LocationPoint;
+}
+
+export interface Event {
+  id: number;
+  shops_id: string;
+  item_type: string;
+  title: string;
+  description: string;
+  SEO_Tags: string;
+  created_at?: string;
+  updated_at?: string;
+  _events_seo_of_items?: EventDetails;
+  _item_images_of_items?: EventImage[];
+  _shops?: Shop;
+}
+
+export interface EventFilters {
+  search?: string;
+  location?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  priceMin?: number;
+  priceMax?: number;
+  itemType?: string;
+  shopId?: string;
+}
+
+interface EventCardProps {
+  event: Event;
+  className?: string;
+}
+
+// ===== MENU TYPES =====
+export interface MenuItem {
+  id: string;
+  title: string;
+  url: string;
+  order: number;
+  is_active: boolean;
+  created_at: number;
+  shops_id: string;
+  name: string;
+  seq: number;
+  display_name: string;
+  is_visible: boolean;
+  custom_url: string;
+  Open_new_window: boolean;
+}
 
 //Review interface
 interface Review {
@@ -26,6 +121,7 @@ interface Review {
     name: string;
   };
 }
+
 // Reviews Response
 interface ReviewsResponse {
   itemsReceived: number;
@@ -71,45 +167,6 @@ interface Shops_Info {
   menu_header_background_color: string;
   menu_footer_background_color: string;
   copyright_text: string;
-}
-
-// products Interface
-interface Product {
-  id: number;
-  shops_id: string;
-  item_type: string;
-  Is_disabled: boolean;
-  created_at: number;
-  title: string;
-  description: string;
-  SEO_Tags?: string;
-  tags?: string;
-  _item_images_of_items?: {
-    items?: ProductImage[];
-  };
-  _shops?: {
-    id: string;
-    name: string;
-    description: string;
-    logo: string;
-    custom_domain: string;
-    Is_visible: boolean;
-    slug: string;
-  };
-  _users?: {
-    id: number;
-    name: string;
-    email: string;
-    role: string;
-  };
-}
-
-interface ProductImage {
-  id: number;
-  display_image?: string;
-  seq: number;
-  image_type: string;
-  Is_disabled: boolean;
 }
 
 interface ProductFilters {
@@ -178,6 +235,140 @@ interface RelatedItemsResponse {
   itemsTotal: number;
   pageTotal: number;
   items: RelatedItem[];
+}
+
+type ActionButton = {
+  id: number;
+  name: string;
+  sharable_link: string;
+  background_color: string;
+  font_color: string;
+  Is_visible: boolean;
+  seq: number;
+  open_in_new_window: boolean;
+};
+
+// Review interface for API data
+interface ReviewData {
+  id: string;
+  created_at: number;
+  items_id: number;
+  shops_id: string;
+  Comments: string;
+  Helpful_count: number;
+  Is_visible: boolean;
+  Rating: number;
+  Title: string;
+  item_images_id: number[];
+  users_id: number;
+  user_info?: {
+    id: number;
+    name: string;
+  };
+}
+
+// Product interface matching your API response
+interface Product {
+  id: number;
+  shops_id: string;
+  item_type: string;
+  Is_disabled: boolean;
+  created_at: number;
+  title: string;
+  description: string;
+  SEO_Tags?: string;
+  tags?: string;
+  _item_images_of_items?: {
+    items?: ProductImage[];
+    itemsReceived?: number;
+    curPage?: number;
+    nextPage?: number | null;
+    prevPage?: number | null;
+    offset?: number | null;
+    perPage?: number | null;
+  };
+  _shops?: {
+    id: string;
+    created_at?: number;
+    name: string;
+    description: string;
+    logo: string;
+    custom_domain: string;
+    Is_visible: boolean;
+    slug: string;
+  };
+  _users?: {
+    id: number;
+    created_at?: number;
+    name: string;
+    email: string;
+    role: string;
+    api_key?: string;
+    shops_id?: string;
+  };
+  _action_buttons?: any[];
+}
+
+interface ProductImage {
+  id: number;
+  shops_id?: string;
+  items_id?: number;
+  created_at?: number;
+  display_image?: string;
+  seq: number;
+  image_type: string;
+  Is_disabled: boolean;
+}
+
+interface HeaderProps {
+  shopId?: string;
+}
+interface FooterProps {
+  shopId?: string;
+}
+
+// ===== ADDITIONAL TYPES FROM TYPES FILE =====
+export interface ApiResponse<T> {
+  data: T;
+  message?: string;
+  success: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface EventPass {
+  id: string;
+  event_id: number;
+  user_id: string;
+  pass_type: string;
+  quantity: number;
+  total_price: number;
+  currency: string;
+  status: "active" | "used" | "cancelled" | "refunded";
+  qr_code: string;
+  purchase_date: string;
+  event?: Event;
+}
+
+export interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}
+
+export interface AppState {
+  auth: AuthState;
+  events: Event[];
+  filters: EventFilters;
+  loading: boolean;
+  error: string | null;
 }
 
 class ApiService {
@@ -279,8 +470,8 @@ class ApiService {
     if (typeof window === "undefined") return "";
 
     let domain = window.location.hostname;
-    //it dosent detect port on localhost i will remove it after some time
-    // domain += `:${window.location.port}`;
+
+    domain += `:${window.location.port}`;
 
     return domain;
   }
@@ -328,7 +519,7 @@ class ApiService {
 
       if (response.data?.authToken) {
         this.publicAuthToken = response.data.authToken;
-        console.log("Public auth token obtained successfully");
+
         return this.publicAuthToken;
       }
     } catch (error) {
@@ -629,6 +820,19 @@ class ApiService {
   }
 }
 
-export type { RelatedItem, RelatedItemsResponse };
+export type {
+  RelatedItem,
+  RelatedItemsResponse,
+  SearchResponse,
+  EventCardProps,
+  ActionButton,
+  ReviewData,
+  ReviewsResponse,
+  Product,
+  ProductImage,
+  DynamicMenu,
+  HeaderProps,
+  FooterProps,
+};
 export const apiService = new ApiService();
 export default apiService;

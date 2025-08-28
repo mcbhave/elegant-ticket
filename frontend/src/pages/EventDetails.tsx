@@ -23,70 +23,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Event } from "@/types";
-// import { apiService } from "@/services/api";
-import { apiService, RelatedItem, RelatedItemsResponse } from "@/services/api";
-
-// import { MenuItem } from "@/types";
-
-// Review interface for API data
-interface ReviewData {
-  id: string;
-  created_at: number;
-  items_id: number;
-  shops_id: string;
-  Comments: string;
-  Helpful_count: number;
-  Is_visible: boolean;
-  Rating: number;
-  Title: string;
-  item_images_id: number[];
-  users_id: number;
-  user_info?: {
-    id: number;
-    name: string;
-  };
-}
-
-interface ReviewsResponse {
-  itemsReceived: number;
-  curPage: number;
-  nextPage: number | null;
-  prevPage: number | null;
-  offset: number;
-  perPage: number;
-  itemsTotal: number;
-  pageTotal: number;
-  items: ReviewData[];
-  ratings_avg: {
-    reviews_Rating1: number;
-    Total_items: number;
-  }[];
-}
+import {
+  apiService,
+  RelatedItem,
+  RelatedItemsResponse,
+  ReviewData,
+  ReviewsResponse,
+} from "@/services/api";
 
 const EventDetails = () => {
   const { id } = useParams();
   const [event, setEvent] = useState<Event | null>(null);
-  const [relatedEvents, setRelatedEvents] = useState<Event[]>([]);
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [reviewsData, setReviewsData] = useState<ReviewsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
   const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
 
-  // const [menus, setMenus] = useState<MenuItem[]>([]);
-
-  // useEffect(() => {
-  //   const loadMenus = async () => {
-  //     try {
-  //       const data = await apiService.getMenus(); // adjust to your API method
-  //       setMenus(data);
-  //     } catch (error) {
-  //       console.error("Failed to load menus:", error);
-  //     }
-  //   };
-
-  //   loadMenus();
-  // }, []);
   useEffect(() => {
     const loadEventDetails = async () => {
       try {
@@ -200,7 +153,6 @@ const EventDetails = () => {
     );
   }
 
-  // Use tags instead of SEO_Tags
   // @ts-ignore
   const eventTags = event.tags
     ? // @ts-ignore
@@ -214,25 +166,7 @@ const EventDetails = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      {/* Menus
-      <div className="bg-background border-b">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex gap-6">
-          {menus
-            .filter((menu) => menu.is_visible)
-            .sort((a, b) => a.seq - b.seq)
-            .map((menu) => (
-              <Link
-                key={menu.id}
-                to={menu.custom_url}
-                target={menu.Open_new_window ? "_blank" : "_self"}
-                className="text-sm font-medium text-foreground hover:text-primary transition-colors"
-              >
-                {menu.display_name}
-              </Link>
-            ))}
-        </div>
-      </div> */}
-      {/* Back Button */}
+
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <Button variant="ghost" asChild className="mb-4">
           <Link to="/events">
@@ -255,14 +189,13 @@ const EventDetails = () => {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 tracking-tight">
               {event.title}
             </h1>
-            {/* Show only first line/sentence of description */}
+
             <p className="text-xl md:text-2xl mb-6 text-white/90 leading-relaxed overflow-hidden">
               {event.description.length > 100
                 ? event.description.substring(0, 100) + "..."
                 : event.description.split(".")[0] + "."}
             </p>
 
-            {/* Quick Info */}
             <div className="flex flex-wrap gap-6 mb-6">
               {event._events_seo_of_items?.start_time && (
                 <div className="flex items-center space-x-2">
@@ -431,7 +364,7 @@ const EventDetails = () => {
                 </Card>
               )}
 
-              {/* Reviews - Updated with API data */}
+              {/* Reviews  */}
               {reviews.length > 0 && (
                 <Card className="bg-gradient-card border-0 shadow-card">
                   <CardHeader>

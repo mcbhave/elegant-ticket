@@ -2,39 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ExternalLink } from "lucide-react";
-import { apiService } from "@/services/api";
-
-// Dynamic menu interface (same as Header)
-interface DynamicMenu {
-  id: number;
-  created_at: number;
-  shops_id: string;
-  name: string;
-  seq: number;
-  display_name: string;
-  is_visible: boolean;
-  custom_url: string;
-  Open_new_window: boolean;
-  category: string;
-  placement: string;
-  image_url: string;
-  background_color: string;
-  font_color: string;
-  _shop_info: {
-    id: number;
-    shops_id: string;
-    title: string;
-    description: string;
-    logo: string;
-    menu_header_background_color: string;
-    menu_footer_background_color: string;
-    copyright_text: string;
-  };
-}
-
-interface FooterProps {
-  shopId?: string;
-}
+import { apiService, DynamicMenu, FooterProps } from "@/services/api";
 
 // Helper function to determine if URL is external
 const isExternalUrl = (url: string) => {
