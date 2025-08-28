@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { AuthCredentials, SignupData } from "@/types";
+import { apiService, AuthCredentials, SignupData } from "@/services/api";
 
 const Auth: React.FC = () => {
   const [searchParams] = useSearchParams();

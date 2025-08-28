@@ -23,96 +23,15 @@ import { ProductCard } from "@/components/events/ProductCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-// import { apiService } from "@/services/api";
-import { apiService, RelatedItem, RelatedItemsResponse } from "@/services/api";
-
-// Product interface matching your API response
-interface Product {
-  id: number;
-  shops_id: string;
-  item_type: string;
-  Is_disabled: boolean;
-  created_at: number;
-  title: string;
-  description: string;
-  SEO_Tags?: string;
-  tags?: string;
-  _item_images_of_items?: {
-    items?: ProductImage[];
-    itemsReceived?: number;
-    curPage?: number;
-    nextPage?: number | null;
-    prevPage?: number | null;
-    offset?: number | null;
-    perPage?: number | null;
-  };
-  _shops?: {
-    id: string;
-    created_at?: number;
-    name: string;
-    description: string;
-    logo: string;
-    custom_domain: string;
-    Is_visible: boolean;
-    slug: string;
-  };
-  _users?: {
-    id: number;
-    created_at?: number;
-    name: string;
-    email: string;
-    role: string;
-    api_key?: string;
-    shops_id?: string;
-  };
-  _action_buttons?: any[];
-}
-
-interface ProductImage {
-  id: number;
-  shops_id?: string;
-  items_id?: number;
-  created_at?: number;
-  display_image?: string;
-  seq: number;
-  image_type: string;
-  Is_disabled: boolean;
-}
-
-// Review interface for API data
-interface ReviewData {
-  id: string;
-  created_at: number;
-  items_id: number;
-  shops_id: string;
-  Comments: string;
-  Helpful_count: number;
-  Is_visible: boolean;
-  Rating: number;
-  Title: string;
-  item_images_id: number[];
-  users_id: number;
-  user_info?: {
-    id: number;
-    name: string;
-  };
-}
-
-interface ReviewsResponse {
-  itemsReceived: number;
-  curPage: number;
-  nextPage: number | null;
-  prevPage: number | null;
-  offset: number;
-  perPage: number;
-  itemsTotal: number;
-  pageTotal: number;
-  items: ReviewData[];
-  ratings_avg: {
-    reviews_Rating1: number;
-    Total_items: number;
-  }[];
-}
+import {
+  apiService,
+  RelatedItem,
+  RelatedItemsResponse,
+  ReviewData,
+  ReviewsResponse,
+  Product,
+  ProductImage,
+} from "@/services/api";
 
 const ProductDetails = () => {
   const { shopId, id } = useParams();

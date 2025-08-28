@@ -21,17 +21,7 @@ import { EventCard } from "@/components/events/EventCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Event } from "@/types";
-import { apiService } from "@/services/api";
-
-interface SearchResponse {
-  itemsReceived: number;
-  curPage: number;
-  nextPage: number | null;
-  prevPage: number | null;
-  offset: number;
-  perPage: number;
-  items: Event[];
-}
+import { apiService, SearchResponse } from "@/services/api";
 
 const SearchResults = () => {
   const { query: urlQuery } = useParams();

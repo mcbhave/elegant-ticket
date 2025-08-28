@@ -6,29 +6,12 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Event } from "@/types";
 import { format } from "date-fns";
-
-interface EventCardProps {
-  event: Event;
-  className?: string;
-}
-
-type EventImage = {
-  is_primary?: boolean;
-  display_image?: string;
-  file_url?: string;
-  alt_text?: string;
-};
-
-type ActionButton = {
-  id: number;
-  name: string;
-  sharable_link: string;
-  background_color: string;
-  font_color: string;
-  Is_visible: boolean;
-  seq: number;
-  open_in_new_window: boolean;
-};
+import {
+  apiService,
+  EventCardProps,
+  EventImage,
+  ActionButton,
+} from "@/services/api";
 
 export const EventCard: React.FC<EventCardProps> = ({
   event,

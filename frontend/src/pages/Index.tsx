@@ -15,7 +15,6 @@ import { Footer } from "@/components/layout/Footer";
 import { EventCard } from "@/components/events/EventCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Event } from "@/types";
 import { apiService } from "@/services/api";
 import { useNavigate } from "react-router-dom";
 
@@ -70,7 +69,16 @@ const Index = () => {
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: `url(https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=1920&auto=format&fit=crop&q=80&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTZ8fGV2ZW50fGVufDB8fDB8fHww)`,
+            ...(shopInfo?.home_image_url && !shopInfo?.hide_home_image_url
+              ? {
+                  backgroundImage: `url(${shopInfo.home_image_url})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat",
+                }
+              : {
+                  backgroundColor: shopInfo?.home_background_color || "#9b59b6",
+                }),
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent" />
@@ -83,7 +91,7 @@ const Index = () => {
               color: shopInfo?.header_1_font_color || "#ffffff",
             }}
           >
-            {shopInfoLoading ? "Loading..." : shopInfo?.header_1}
+            {shopInfoLoading ? "..." : shopInfo?.header_1}
           </h1>
 
           {/* Description - Use shop description */}
@@ -93,7 +101,7 @@ const Index = () => {
               color: shopInfo?.header_2_font_color || "#ffffff",
             }}
           >
-            {shopInfoLoading ? "Loading description..." : shopInfo?.description}
+            {shopInfoLoading ? "..." : shopInfo?.description}
           </p>
 
           {/* Secondary Header - Use header_2 if different from header_1 */}
@@ -108,26 +116,43 @@ const Index = () => {
             </h2>
           )}
 
+          {/* Header 3 - if available */}
+          {shopInfo?.header_3 && (
+            <h3
+              className="text-xl md:text-2xl mb-4 font-medium"
+              style={{
+                color: shopInfo?.header_3_font_color || "#ffffff",
+              }}
+            >
+              {shopInfo.header_3}
+            </h3>
+          )}
+
           {/* Search Form */}
           <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-8">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/60 w-5 h-5" />
+              {shopInfo?.header_4_font_color && (
+                <style>
+                  {`.search-input::placeholder { color: ${shopInfo.header_4_font_color} !important; }`}
+                </style>
+              )}
               <Input
                 type="search"
-                placeholder={
-                  shopInfo?.header_4 ||
-                  "Search for events, products, or services..."
-                }
+                placeholder={shopInfo?.header_4}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 pr-32 py-4 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:bg-white/20 backdrop-blur-sm"
+                className="search-input pl-12 pr-32 py-4 text-lg bg-white/10 border-white/20 text-white focus:bg-white/20 backdrop-blur-sm"
               />
               <Button
                 type="submit"
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 btn-glow"
+                style={{
+                  color: shopInfo?.header_5_font_color || "#ffffff",
+                }}
               >
                 <Search className="w-4 h-4 mr-2" />
-                Search
+                {shopInfo?.header_5 || "Search"}
               </Button>
             </div>
           </form>
@@ -140,7 +165,7 @@ const Index = () => {
               className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Link to="/events">
-                Explore Events
+                {shopInfo?.header_6 || "Explore Events"}
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
             </Button>
@@ -180,10 +205,11 @@ const Index = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold mb-4">
-              {shopInfo?.header_6 || "Popular Categories"}
+              {shopInfo?.Items_categories_title || "Popular Categories"}
             </h2>
             <p className="text-xl text-muted-foreground">
-              Find events that match your interests
+              {shopInfo?.Items_categories_description ||
+                "Find events that match your interests"}
             </p>
           </div>
 
@@ -237,15 +263,6 @@ const Index = () => {
 
       {/* Footer */}
       <Footer />
-
-      {/* SEO Script Injection */}
-      {shopInfo?.seo_script_text && (
-        <div
-          dangerouslySetInnerHTML={{
-            __html: shopInfo.seo_script_text,
-          }}
-        />
-      )}
     </div>
   );
 };
