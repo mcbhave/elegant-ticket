@@ -1,4 +1,4 @@
-// Complete updated Header component with full dynamic functionality
+// Updated Header component to use shops info
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -22,9 +22,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
-import { apiService, DynamicMenu, HeaderProps } from "@/services/api";
+import { apiService, DynamicMenu, HeaderProps, ShopInfo } from "@/services/api";
+import DynamicSEO from "@/components/DynamicSEO";
 
-// Helper function to determine if URL is external
+// Helper functions remain the same...
 const isExternalUrl = (url: string) => {
   if (!url) return false;
   return (
@@ -34,29 +35,21 @@ const isExternalUrl = (url: string) => {
   );
 };
 
-// Helper function to get the correct URL for a menu item
 const getMenuUrl = (menu: DynamicMenu) => {
   if (menu.name.toLowerCase() === "home") {
     return "/";
   }
 
-  // If custom_url exists, use it as is
   if (menu.custom_url) {
     return menu.custom_url;
   }
 
-  // Fallback to name-based URL
   return `/${menu.name.toLowerCase()}`;
 };
 
-// Helper function to determine if menu should open in new window
 const shouldOpenInNewWindow = (menu: DynamicMenu) => {
-  // If explicitly set to open in new window
   if (menu.Open_new_window) return true;
-
-  // If it's an external URL, open in new window
   if (menu.custom_url && isExternalUrl(menu.custom_url)) return true;
-
   return false;
 };
 
@@ -65,16 +58,13 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [dynamicMenus, setDynamicMenus] = useState<DynamicMenu[]>([]);
   const [isLoadingMenus, setIsLoadingMenus] = useState(true);
-  const [shopInfo, setShopInfo] = useState<DynamicMenu["_shop_info"] | null>(
-    null
-  );
+  const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Helper function to determine if a menu item is active (only for internal URLs)
+  // Helper function to determine if a menu item is active
   const isMenuItemActive = (menuUrl: string, menuName: string) => {
-    // Don't mark external URLs as active
     if (isExternalUrl(menuUrl)) return false;
 
     if (menuName.toLowerCase() === "home") {
@@ -85,69 +75,27 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     );
   };
 
-  // Fetch dynamic menus and shop info
+  // Updated fetch function to get shops_info
   useEffect(() => {
     const fetchHeaderData = async () => {
       try {
         setIsLoadingMenus(true);
 
-        // Fetch all menus to get shop info and header menus
+        // Fetch all menus for header placement
         const allMenus = await apiService.getMenus(shopId);
-
-        // Filter for header placement and visible menus
         const headerMenus = allMenus
           .filter((menu) => menu.is_visible && menu.placement === "header")
           .sort((a, b) => a.seq - b.seq);
 
         setDynamicMenus(headerMenus);
 
-        // Extract shop info from the first menu item (they all have the same shop info)
-        if (headerMenus.length > 0) {
-          setShopInfo(headerMenus[0]._shop_info);
+        // Fetch shops info separately to get the shop name
+        const shopInfoData = await apiService.getShopsInfo();
+        if (shopInfoData) {
+          setShopInfo(shopInfoData);
         }
       } catch (error) {
         console.error("Failed to load header data:", error);
-        // Fallback to default menus if API fails
-        setDynamicMenus([
-          {
-            id: 1,
-            created_at: Date.now(),
-            shops_id: shopId || "",
-            name: "home",
-            seq: 0,
-            display_name: "Home",
-            is_visible: true,
-            custom_url: "/",
-            Open_new_window: false,
-            category: "Company",
-            placement: "header",
-            image_url: "",
-            background_color: "#ffffff",
-            font_color: "",
-            _shop_info: {
-              id: 1,
-              shops_id: shopId || "",
-              title: "Your Shop",
-              description: "Welcome to our shop",
-              logo: "",
-              menu_header_background_color: "",
-              menu_footer_background_color: "",
-              copyright_text: "© 2025 All rights reserved.",
-            },
-          },
-        ]);
-
-        // Set default shop info
-        setShopInfo({
-          id: 1,
-          shops_id: shopId || "",
-          title: "Your Shop",
-          description: "Welcome to our shop",
-          logo: "",
-          menu_header_background_color: "",
-          menu_footer_background_color: "",
-          copyright_text: "© 2025 All rights reserved.",
-        });
       } finally {
         setIsLoadingMenus(false);
       }
@@ -169,13 +117,11 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     navigate("/");
   };
 
-  // Render dynamic menu item
+  // Render dynamic menu item function remains the same
   const renderDynamicMenuItem = (menu: DynamicMenu, isMobile = false) => {
     const menuUrl = getMenuUrl(menu);
     const openInNewWindow = shouldOpenInNewWindow(menu);
     const isExternal = isExternalUrl(menuUrl);
-
-    // For internal URLs, check if active
     const isActive = !isExternal && isMenuItemActive(menuUrl, menu.name);
 
     const baseClasses = isMobile
@@ -190,7 +136,6 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
       },
     };
 
-    // Handle external URLs or URLs that should open in new window
     if (openInNewWindow || isExternal) {
       return (
         <a
@@ -211,7 +156,6 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
       );
     }
 
-    // Handle internal URLs
     return (
       <Link key={menu.id} to={menuUrl} {...linkProps}>
         {menu.display_name}
@@ -237,19 +181,24 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+          {/* Logo - Updated to use _shops.name */}
           <Link to="/" className="flex items-center space-x-3 group">
             {shopInfo?.logo && (
-              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center group-hover:shadow-glow transition-all duration-300 p-1">
+              <div className="flex items-center justify-center group-hover:shadow-glow transition-all duration-300">
                 <img
                   src={shopInfo.logo}
-                  alt={`${shopInfo.title} `}
-                  className="w-full h-full object-contain"
+                  alt={`${shopInfo._shops?.name || shopInfo.title}`}
+                  className="max-h-12 max-w-24 h-auto w-auto object-contain"
+                  style={{
+                    minHeight: "32px",
+                    minWidth: "32px",
+                  }}
                 />
               </div>
             )}
             <span className="text-xl font-bold gradient-text hidden sm:block">
-              {shopInfo?.title}
+              {/* Use _shops.name if available, fallback to title */}
+              {shopInfo?._shops?.name}
             </span>
           </Link>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Calendar,
@@ -7,6 +7,7 @@ import {
   Search,
   Filter,
   Star,
+  Phone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,8 +16,9 @@ import { Footer } from "@/components/layout/Footer";
 import { EventCard } from "@/components/events/EventCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { apiService } from "@/services/api";
 import { useNavigate } from "react-router-dom";
+import { useShop } from "@/contexts/ShopContext";
+import DynamicSEO from "@/components/DynamicSEO";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -24,27 +26,8 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [shopInfo, setShopInfo] = useState<any>(null);
-  const [shopInfoLoading, setShopInfoLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchShopInfo = async () => {
-      try {
-        const info = await apiService.getShopsInfo();
-        setShopInfo(info);
-
-        if (info?.title) {
-          document.title = info.title;
-        }
-      } catch (error) {
-        console.error("Failed to fetch shop info:", error);
-      } finally {
-        setShopInfoLoading(false);
-      }
-    };
-
-    fetchShopInfo();
-  }, []);
+  // Use shared shop data from context
+  const { shopData: shopInfo, loading: shopInfoLoading } = useShop();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +35,46 @@ const Index = () => {
       navigate(`/search/${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery(""); // Clear the search input
     }
+  };
+
+  // Function to handle action button clicks
+  const handleActionButtonClick = (button: any) => {
+    switch (button.redirect_url_type) {
+      case "tel":
+        window.location.href = `tel:${button.redirect_url}`;
+        break;
+      case "email":
+        window.location.href = `mailto:${button.redirect_url}`;
+        break;
+      case "link":
+        if (button.Open_in_new_window) {
+          window.open(button.redirect_url, "_blank");
+        } else {
+          navigate(button.redirect_url);
+        }
+        break;
+      default:
+        // Handle as external URL
+        if (button.Open_in_new_window) {
+          window.open(button.redirect_url, "_blank");
+        } else {
+          window.location.href = button.redirect_url;
+        }
+    }
+  };
+
+  // Function to get icon based on button type or name
+  const getButtonIcon = (button: any) => {
+    const name = button.name?.toLowerCase();
+    const type = button.redirect_url_type;
+
+    if (type === "tel" || name?.includes("call") || name?.includes("phone")) {
+      return <Phone className="w-4 h-4 mr-2" />;
+    }
+    if (name?.includes("search")) {
+      return <Search className="w-4 h-4 mr-2" />;
+    }
+    return <ArrowRight className="w-4 h-4 mr-2" />;
   };
 
   const stats = [
@@ -62,6 +85,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Dynamic SEO Component - Uses shop defaults */}
+      <DynamicSEO />
+
       <Header />
 
       {/* Hero Section */}
@@ -77,11 +103,11 @@ const Index = () => {
                   backgroundRepeat: "no-repeat",
                 }
               : {
-                  backgroundColor: shopInfo?.home_background_color || "#9b59b6",
+                  backgroundColor: shopInfo?.home_background_color,
                 }),
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent" />
+        <div className="absolute inset-0 bg-black/50" />
 
         <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
           {/* Main Heading - Use header_1 */}
@@ -91,18 +117,31 @@ const Index = () => {
               color: shopInfo?.header_1_font_color || "#ffffff",
             }}
           >
-            {shopInfoLoading ? "..." : shopInfo?.header_1}
+            {shopInfoLoading ? (
+              <div className="inline-flex items-center">
+                <div className="animate-pulse bg-white/20 h-16 w-96 rounded-lg"></div>
+              </div>
+            ) : (
+              shopInfo?.header_1
+            )}
           </h1>
 
-          {/* Description - Use shop description */}
-          <p
+          {/* Description - Use shop description - FIXED: Changed p to div */}
+          <div
             className="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto leading-relaxed"
             style={{
               color: shopInfo?.header_2_font_color || "#ffffff",
             }}
           >
-            {shopInfoLoading ? "..." : shopInfo?.description}
-          </p>
+            {shopInfoLoading ? (
+              <div className="space-y-3">
+                <div className="animate-pulse bg-white/20 h-6 w-full rounded"></div>
+                <div className="animate-pulse bg-white/20 h-6 w-3/4 mx-auto rounded"></div>
+              </div>
+            ) : (
+              shopInfo?.description
+            )}
+          </div>
 
           {/* Secondary Header - Use header_2 if different from header_1 */}
           {shopInfo?.header_2 && shopInfo?.header_2 !== shopInfo?.header_1 && (
@@ -139,10 +178,13 @@ const Index = () => {
               )}
               <Input
                 type="search"
-                placeholder={shopInfo?.header_4}
+                placeholder={
+                  shopInfoLoading ? "Loading..." : shopInfo?.header_4
+                }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="search-input pl-12 pr-32 py-4 text-lg bg-white/10 border-white/20 text-white focus:bg-white/20 backdrop-blur-sm"
+                disabled={shopInfoLoading}
               />
               <Button
                 type="submit"
@@ -157,19 +199,25 @@ const Index = () => {
             </div>
           </form>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              size="lg"
-              asChild
-              className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Link to="/events">
-                {shopInfo?.header_6 || "Explore Events"}
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Link>
-            </Button>
-          </div>
+          {/* Dynamic Action Buttons from API */}
+          {shopInfo?._shop_action_buttons_of_shops?.items &&
+            shopInfo._shop_action_buttons_of_shops.items.length > 0 && (
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                {shopInfo._shop_action_buttons_of_shops.items
+                  .sort((a: any, b: any) => a.seq - b.seq) // Sort by sequence
+                  .map((button: any) => (
+                    <Button
+                      key={button.id}
+                      size="lg"
+                      onClick={() => handleActionButtonClick(button)}
+                      className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      {getButtonIcon(button)}
+                      {button.name}
+                    </Button>
+                  ))}
+              </div>
+            )}
         </div>
 
         {/* Scroll indicator */}
@@ -187,12 +235,12 @@ const Index = () => {
             {stats.map((stat, index) => (
               <Card
                 key={index}
-                className="text-center bg-gradient-card border-0 shadow-card"
+                className="text-center bg-card border shadow-lg"
               >
                 <CardContent className="p-8">
                   <stat.icon className="w-12 h-12 text-primary mx-auto mb-4" />
                   <h3 className="text-3xl font-bold mb-2">{stat.value}</h3>
-                  <p className="text-muted-foreground">{stat.label}</p>
+                  <div className="text-muted-foreground">{stat.label}</div>
                 </CardContent>
               </Card>
             ))}
@@ -207,10 +255,10 @@ const Index = () => {
             <h2 className="text-4xl font-bold mb-4">
               {shopInfo?.Items_categories_title || "Popular Categories"}
             </h2>
-            <p className="text-xl text-muted-foreground">
+            <div className="text-xl text-muted-foreground">
               {shopInfo?.Items_categories_description ||
                 "Find events that match your interests"}
-            </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -221,7 +269,7 @@ const Index = () => {
                   to={`/events?category=${category.toLowerCase()}`}
                   className="group"
                 >
-                  <Card className="card-hover bg-gradient-card border-0 shadow-card">
+                  <Card className="card-hover bg-card border shadow-lg">
                     <CardContent className="p-6 text-center">
                       <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-primary/20 transition-colors">
                         <Calendar className="w-6 h-6 text-primary" />
@@ -239,15 +287,15 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-hero text-white">
+      <section className="py-20 bg-primary text-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold mb-4">
             Ready to Join the Experience?
           </h2>
-          <p className="text-xl mb-8 text-white/90 max-w-2xl mx-auto">
+          <div className="text-xl mb-8 text-white/90 max-w-2xl mx-auto">
             Create your account today and start discovering amazing events in
             your area
-          </p>
+          </div>
           <Button
             size="lg"
             asChild

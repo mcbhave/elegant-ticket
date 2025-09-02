@@ -168,6 +168,47 @@ interface Shops_Info {
   menu_footer_background_color: string;
   copyright_text: string;
 }
+// Updated ShopInfo interface to match API response
+interface ShopInfo {
+  id: number;
+  created_at: number;
+  shops_id: string;
+  title: string;
+  description: string;
+  logo: string;
+  seo_script_text: string | null;
+  home_image_url: string;
+  hide_home_image_url: boolean;
+  home_background_color: string;
+  header_1: string;
+  header_1_font_color: string;
+  header_2: string;
+  header_2_font_color: string;
+  header_3: string;
+  header_3_font_color: string;
+  header_4: string;
+  header_4_font_color: string;
+  header_5: string;
+  header_5_font_color: string;
+  header_6: string;
+  menu_header_background_color: string;
+  menu_footer_background_color: string;
+  Items_categories_title: string;
+  Items_categories_description: string;
+  copyright_text: string;
+  menu_header_font_color: string;
+  menu_footer_font_color: string;
+  _shops: {
+    id: string;
+    created_at: number;
+    name: string;
+    description: string;
+    logo: string;
+    custom_domain: string;
+    Is_visible: boolean;
+    slug: string;
+  };
+}
 
 interface ProductFilters {
   search?: string;
@@ -184,6 +225,9 @@ interface ShopInfo {
   description: string;
   logo: string;
   seo_script_text: string | null;
+  home_image_url: string;
+  hide_home_image_url: boolean;
+  home_background_color: string;
   header_1: string;
   header_1_font_color: string;
   header_2: string;
@@ -195,7 +239,24 @@ interface ShopInfo {
   header_5: string;
   header_5_font_color: string;
   header_6: string;
-  header_font_color: string;
+  menu_header_background_color: string;
+  menu_footer_background_color: string;
+  Items_categories_title: string;
+  Items_categories_description: string;
+  copyright_text: string;
+  menu_header_font_color: string;
+  menu_footer_font_color: string;
+  // Add the nested _shops object
+  _shops: {
+    id: string;
+    created_at: number;
+    name: string;
+    description: string;
+    logo: string;
+    custom_domain: string;
+    Is_visible: boolean;
+    slug: string;
+  };
 }
 
 interface SearchResponse {
@@ -373,15 +434,29 @@ export interface AppState {
 
 class ApiService {
   private api: AxiosInstance;
-  private baseURL = "https://x8ki-letl-twmt.n7.xano.io/api:2duosZ1Y";
-  private elegantAuthKey = "9a6f1d3e-2c4b-4f8a-8e7d-3b2c9f1a6d5e";
+  private baseURL = import.meta.env.VITE_API_BASE_URL;
+  private elegantAuthKey = import.meta.env.VITE_ELEGANT_AUTH_KEY;
+  private apiTimeout = parseInt(import.meta.env.VITE_API_TIMEOUT) || 30000;
   private publicAuthToken: string | null = null;
-  private currentDomain: string | null = null; // Store domain from response header
+  private currentDomain: string | null = null;
 
   constructor() {
+    // Validate required environment variables
+    if (!this.baseURL) {
+      throw new Error(
+        "VITE_API_BASE_URL is not defined in environment variables"
+      );
+    }
+
+    if (!this.elegantAuthKey) {
+      throw new Error(
+        "VITE_ELEGANT_AUTH_KEY is not defined in environment variables"
+      );
+    }
+
     this.api = axios.create({
       baseURL: this.baseURL,
-      timeout: 30000, // Increased from 10000 to 30000 (30 seconds)
+      timeout: this.apiTimeout,
       headers: {
         "Content-Type": "application/json",
       },
@@ -390,7 +465,7 @@ class ApiService {
     // Request interceptor to handle tokens
     this.api.interceptors.request.use(
       async (config) => {
-        // Add domain header with port (ONLY CHANGE from your working code)
+        // Add domain header with port
         if (typeof window !== "undefined") {
           const domain = this.extractDomainWithPort();
           config.headers["X-Elegant-Domain"] = domain;
@@ -413,10 +488,15 @@ class ApiService {
           }
         }
 
-        // For other endpoints, use stored user token
-        const userToken = this.getStoredToken();
-        if (userToken) {
-          config.headers.Authorization = `Bearer ${userToken}`;
+        // For other endpoints, try to get Clerk token first, then fallback to stored token
+        const clerkToken = await this.getClerkToken();
+        if (clerkToken) {
+          config.headers.Authorization = `Bearer ${clerkToken}`;
+        } else {
+          const userToken = this.getStoredToken();
+          if (userToken) {
+            config.headers.Authorization = `Bearer ${userToken}`;
+          }
         }
 
         return config;
@@ -471,7 +551,24 @@ class ApiService {
 
     let domain = window.location.hostname;
 
+    domain += `:${window.location.port}`;
+
     return domain;
+  }
+  // New method to get Clerk token
+  private async getClerkToken(): Promise<string | null> {
+    try {
+      // Access Clerk's window object if available
+      if (typeof window !== "undefined" && (window as any).Clerk) {
+        const clerk = (window as any).Clerk;
+        if (clerk.session) {
+          return await clerk.session.getToken();
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to get Clerk token:", error);
+    }
+    return null;
   }
 
   // ===== PUBLIC AUTH TOKEN =====
@@ -588,41 +685,21 @@ class ApiService {
 
   // ===== AUTH (User Authentication) =====
   async login(credentials: AuthCredentials): Promise<User> {
-    try {
-      const res = await this.api.post(`/auth/login`, credentials);
-
-      const user = res.data;
-      if (user.authToken) {
-        this.setStoredToken(user.authToken);
-        localStorage.setItem("user_data", JSON.stringify(user));
-      }
-
-      return user;
-    } catch (err: any) {
-      throw new Error(err.response?.data?.message || "Login failed");
-    }
+    console.warn("Direct login is deprecated. Use Clerk authentication.");
+    throw new Error("Please use Clerk authentication components");
   }
-
   async signup(userData: SignupData): Promise<User> {
-    try {
-      const res = await this.api.post(`/auth/signup`, userData);
-
-      const user = res.data;
-      if (user.authToken) {
-        this.setStoredToken(user.authToken);
-        localStorage.setItem("user_data", JSON.stringify(user));
-      }
-
-      return user;
-    } catch (err: any) {
-      throw new Error(err.response?.data?.message || "Signup failed");
-    }
+    console.warn("Direct signup is deprecated. Use Clerk authentication.");
+    throw new Error("Please use Clerk authentication components");
   }
 
   logout(): void {
     this.clearStoredToken();
+    // Let Clerk handle the actual sign out
+    if (typeof window !== "undefined" && (window as any).Clerk) {
+      (window as any).Clerk.signOut();
+    }
   }
-
   // ===== EVENTS (Now using public auth token automatically) =====
   async getEvents(filters?: EventFilters): Promise<Event[]> {
     try {
@@ -723,6 +800,23 @@ class ApiService {
 
   // ===== USER =====
   getCurrentUser(): User | null {
+    // First try to get user from Clerk
+    if (typeof window !== "undefined" && (window as any).Clerk) {
+      const clerk = (window as any).Clerk;
+      if (clerk.user) {
+        return {
+          id: clerk.user.id,
+
+          email: clerk.user.emailAddresses[0]?.emailAddress || "",
+          name: clerk.user.fullName || clerk.user.firstName || "",
+          avatar: clerk.user.imageUrl,
+          created_at: clerk.user.createdAt?.toISOString() || "",
+        };
+        console.log(id);
+      }
+    }
+
+    // Fallback to localStorage
     try {
       const data = localStorage.getItem("user_data");
       return data ? JSON.parse(data) : null;
@@ -732,6 +826,11 @@ class ApiService {
   }
 
   isAuthenticated(): boolean {
+    // Check Clerk authentication first
+    if (typeof window !== "undefined" && (window as any).Clerk) {
+      return !!(window as any).Clerk.session;
+    }
+    // Fallback to stored token
     return !!this.getStoredToken();
   }
 
@@ -831,6 +930,7 @@ export type {
   DynamicMenu,
   HeaderProps,
   FooterProps,
+  ShopInfo,
 };
 export const apiService = new ApiService();
 export default apiService;

@@ -4,7 +4,6 @@ import { Calendar, MapPin, Clock, Users, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Event } from "@/types";
 import { format } from "date-fns";
 import {
   apiService,
@@ -127,7 +126,7 @@ export const EventCard: React.FC<EventCardProps> = ({
       <CardContent className="p-6">
         {/* Title */}
         <h3 className="font-semibold text-lg mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-          <Link to={`/event/${event.id}`} className="hover:underline">
+          <Link to={`/items/${event.id}`} className="hover:underline">
             {event.title}
           </Link>
         </h3>
