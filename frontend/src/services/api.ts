@@ -551,8 +551,6 @@ class ApiService {
 
     let domain = window.location.hostname;
 
-    domain += `:${window.location.port}`;
-
     return domain;
   }
   // New method to get Clerk token
@@ -812,7 +810,6 @@ class ApiService {
           avatar: clerk.user.imageUrl,
           created_at: clerk.user.createdAt?.toISOString() || "",
         };
-        console.log(id);
       }
     }
 
