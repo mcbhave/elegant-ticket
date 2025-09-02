@@ -31,7 +31,6 @@ export const useAuthProvider = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { user } = useUser();
 
   // Clerk hooks
   const { isSignedIn, isLoaded, signOut } = useClerkAuth();
