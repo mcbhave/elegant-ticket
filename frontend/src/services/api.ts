@@ -388,6 +388,26 @@ interface FooterProps {
   shopId?: string;
 }
 
+// items category
+interface ItemCategory {
+  id: number;
+  created_at: number;
+  shops_id: string;
+  category_type: string;
+  name: string;
+  Is_visible: boolean;
+  image_url: string;
+  _shop_info: {
+    id: number;
+    shops_id: string;
+    title: string;
+    description: string;
+    logo: string;
+    Items_categories_title: string;
+    Items_categories_description: string;
+  };
+}
+
 // ===== ADDITIONAL TYPES FROM TYPES FILE =====
 export interface ApiResponse<T> {
   data: T;
@@ -479,7 +499,8 @@ class ApiService {
           config.url?.includes("/products") ||
           config.url?.includes("/shops_info") ||
           config.url?.includes("/items/") ||
-          config.url?.includes("/related_items")
+          config.url?.includes("/related_items") ||
+          config.url?.includes("/items_categories")
         ) {
           const publicToken = await this.getPublicAuthToken();
           if (publicToken) {
@@ -517,7 +538,8 @@ class ApiService {
             error.config?.url?.includes("/products") ||
             error.config?.url?.includes("/shops_info") ||
             error.config?.url?.includes("/items/") ||
-            error.config?.url?.includes("/related_items")
+            error.config?.url?.includes("/related_items") ||
+            error.config?.url?.includes("/items_categories")
           ) {
             this.publicAuthToken = null; // Clear cached public token
             // Retry with fresh public token
@@ -857,6 +879,31 @@ class ApiService {
       return null;
     }
   }
+  // ===== ITEMS CATEGORIES =====
+  async getItemsCategories(shopId?: string): Promise<ItemCategory[]> {
+    try {
+      const params = new URLSearchParams();
+      if (shopId) {
+        params.append("shops_id", shopId);
+      }
+
+      const endpoint = params.toString()
+        ? `/items_categories?${params.toString()}`
+        : "/items_categories";
+
+      const res = await this.api.get(endpoint);
+
+      // Filter only visible categories and sort by name
+      return res.data
+        .filter((category: ItemCategory) => category.Is_visible)
+        .sort((a: ItemCategory, b: ItemCategory) =>
+          a.name.localeCompare(b.name)
+        );
+    } catch (err) {
+      console.error("Failed to fetch items categories", err);
+      return [];
+    }
+  }
 
   // shop info
 
@@ -928,6 +975,7 @@ export type {
   HeaderProps,
   FooterProps,
   ShopInfo,
+  ItemCategory,
 };
 export const apiService = new ApiService();
 export default apiService;

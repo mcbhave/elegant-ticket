@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Calendar,
@@ -19,15 +19,42 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useShop } from "@/contexts/ShopContext";
 import DynamicSEO from "@/components/DynamicSEO";
+import { apiService, ItemCategory } from "@/services/api";
 
 const Index = () => {
   const navigate = useNavigate();
   const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [categories, setCategories] = useState<ItemCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   // Use shared shop data from context
   const { shopData: shopInfo, loading: shopInfoLoading } = useShop();
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setCategoriesLoading(true);
+      try {
+        const fetchedCategories = await apiService.getItemsCategories(
+          shopInfo?._shops?.id
+        );
+        setCategories(fetchedCategories);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        // Fallback to default categories if API fails
+        setCategories([]);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    // Only fetch categories if we have shop info or after a reasonable delay
+    if (shopInfo?._shops?.id || !shopInfoLoading) {
+      fetchCategories();
+    }
+  }, [shopInfo?._shops?.id, shopInfoLoading]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +103,39 @@ const Index = () => {
     }
     return <ArrowRight className="w-4 h-4 mr-2" />;
   };
+
+  // Fallback categories when API categories are not available
+  const defaultCategories = [
+    { name: "Music", category_type: "music" },
+    { name: "Arts", category_type: "arts" },
+    { name: "Sports", category_type: "sports" },
+    { name: "Food", category_type: "food" },
+    { name: "Tech", category_type: "tech" },
+    { name: "Business", category_type: "business" },
+  ];
+
+  // Determine which categories to display
+  const displayCategories =
+    categories.length > 0
+      ? categories
+      : defaultCategories.map((cat, index) => ({
+          id: index,
+          name: cat.name,
+          category_type: cat.category_type,
+          created_at: Date.now(),
+          shops_id: "",
+          Is_visible: true,
+          image_url: "",
+          _shop_info: {
+            id: 0,
+            shops_id: "",
+            title: "",
+            description: "",
+            logo: "",
+            Items_categories_title: "",
+            Items_categories_description: "",
+          },
+        }));
 
   const stats = [
     { label: "Active Events", value: "2,000+", icon: Calendar },
@@ -262,25 +322,59 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {["Music", "Arts", "Sports", "Food", "Tech", "Business"].map(
-              (category) => (
+            {categoriesLoading ? (
+              // Loading skeleton
+              Array.from({ length: 6 }).map((_, index) => (
+                <Card key={index} className="bg-card border shadow-lg">
+                  <CardContent className="p-6 text-center">
+                    <div className="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-3 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : displayCategories.length > 0 ? (
+              displayCategories.map((category) => (
                 <Link
-                  key={category}
-                  to={`/events?category=${category.toLowerCase()}`}
+                  key={category.id}
+                  to={`/events?category=${category.category_type.toLowerCase()}`}
                   className="group"
                 >
                   <Card className="card-hover bg-card border shadow-lg">
                     <CardContent className="p-6 text-center">
                       <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-primary/20 transition-colors">
-                        <Calendar className="w-6 h-6 text-primary" />
+                        {category.image_url ? (
+                          <img
+                            src={category.image_url}
+                            alt={category.name}
+                            className="w-6 h-6 object-contain"
+                            onError={(e) => {
+                              // Fallback to Calendar icon if image fails to load
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = "none";
+                              const calendarIcon =
+                                document.createElement("div");
+                              calendarIcon.innerHTML =
+                                '<svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                              target.parentNode?.appendChild(calendarIcon);
+                            }}
+                          />
+                        ) : (
+                          <Calendar className="w-6 h-6 text-primary" />
+                        )}
                       </div>
                       <h3 className="font-semibold group-hover:text-primary transition-colors">
-                        {category}
+                        {category.name}
                       </h3>
                     </CardContent>
                   </Card>
                 </Link>
-              )
+              ))
+            ) : (
+              // Empty state
+              <div className="col-span-full text-center py-8">
+                <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No categories available</p>
+              </div>
             )}
           </div>
         </div>
