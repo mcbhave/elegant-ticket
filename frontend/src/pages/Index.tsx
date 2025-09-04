@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useShop } from "@/contexts/ShopContext";
 import DynamicSEO from "@/components/DynamicSEO";
-import { apiService, ItemCategory } from "@/services/api";
+import { apiService, ItemCategory, Event } from "@/services/api";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -104,6 +104,31 @@ const Index = () => {
     return <ArrowRight className="w-4 h-4 mr-2" />;
   };
 
+  // Dynamic stats function to replace hardcoded data
+  const getStatsData = () => {
+    // Use dynamic stats from API if available
+    if (
+      shopInfo?._shop_stats_of_shops &&
+      shopInfo._shop_stats_of_shops.length > 0
+    ) {
+      return shopInfo._shop_stats_of_shops
+        .sort((a, b) => a.seq - b.seq) // Sort by sequence
+        .map((stat) => ({
+          label: stat.description,
+          value: stat.title,
+          icon: stat.image_url ? null : Calendar, // Use Calendar as fallback icon
+          image_url: stat.image_url,
+        }));
+    }
+
+    // Fallback to default stats if no API data
+    return [
+      { label: "Active Events", value: "2,000+", icon: Calendar },
+      { label: "Happy Attendees", value: "50K+", icon: Star },
+      { label: "Cities Covered", value: "100+", icon: MapPin },
+    ];
+  };
+
   // Fallback categories when API categories are not available
   const defaultCategories = [
     { name: "Music", category_type: "music" },
@@ -136,12 +161,6 @@ const Index = () => {
             Items_categories_description: "",
           },
         }));
-
-  const stats = [
-    { label: "Active Events", value: "2,000+", icon: Calendar },
-    { label: "Happy Attendees", value: "50K+", icon: Star },
-    { label: "Cities Covered", value: "100+", icon: MapPin },
-  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -186,7 +205,7 @@ const Index = () => {
             )}
           </h1>
 
-          {/* Description - Use shop description - FIXED: Changed p to div */}
+          {/* Description - Use shop description */}
           <div
             className="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto leading-relaxed"
             style={{
@@ -270,7 +289,11 @@ const Index = () => {
                       key={button.id}
                       size="lg"
                       onClick={() => handleActionButtonClick(button)}
-                      className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
+                      className="btn-glow hover:opacity-90 transition-opacity"
+                      style={{
+                        backgroundColor: button.background_color || "#7c3bed",
+                        color: button.font_color || "#ffffff",
+                      }}
                     >
                       {getButtonIcon(button)}
                       {button.name}
@@ -288,17 +311,36 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
+      {/* Dynamic Stats Section */}
       <section className="py-16 bg-muted/30">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {stats.map((stat, index) => (
+            {getStatsData().map((stat, index) => (
               <Card
                 key={index}
                 className="text-center bg-card border shadow-lg"
               >
                 <CardContent className="p-8">
-                  <stat.icon className="w-12 h-12 text-primary mx-auto mb-4" />
+                  {stat.image_url ? (
+                    <img
+                      src={stat.image_url}
+                      alt={stat.label}
+                      className="w-48 h-48 mx-auto mb-4 object-contain"
+                      onError={(e) => {
+                        // Fallback to Calendar icon if image fails
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                        const fallbackIcon = document.createElement("div");
+                        fallbackIcon.innerHTML =
+                          '<svg class="w-12 h-12 text-primary mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                        target.parentNode?.appendChild(fallbackIcon);
+                      }}
+                    />
+                  ) : (
+                    stat.icon && (
+                      <stat.icon className="w-12 h-12 text-primary mx-auto mb-4" />
+                    )
+                  )}
                   <h3 className="text-3xl font-bold mb-2">{stat.value}</h3>
                   <div className="text-muted-foreground">{stat.label}</div>
                 </CardContent>
@@ -321,14 +363,17 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 justify-items-center">
             {categoriesLoading ? (
               // Loading skeleton
               Array.from({ length: 6 }).map((_, index) => (
-                <Card key={index} className="bg-card border shadow-lg">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-3 animate-pulse"></div>
-                    <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                <Card
+                  key={index}
+                  className="bg-card border shadow-lg w-full max-w-[280px]"
+                >
+                  <CardContent className="p-10 text-center">
+                    <div className="w-32 h-32 bg-gray-200 mx-auto mb-6 animate-pulse rounded-lg"></div>
+                    <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
                   </CardContent>
                 </Card>
               ))
@@ -337,16 +382,17 @@ const Index = () => {
                 <Link
                   key={category.id}
                   to={`/events?category=${category.category_type.toLowerCase()}`}
-                  className="group"
+                  className="group w-full max-w-[280px]"
                 >
-                  <Card className="card-hover bg-card border shadow-lg">
-                    <CardContent className="p-6 text-center">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-primary/20 transition-colors">
+                  <Card className="card-hover bg-card border shadow-lg h-full min-h-[280px] w-full transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
+                    <CardContent className="p-10 text-center flex flex-col items-center justify-center h-full">
+                      <div className="w-32 h-32 flex items-center justify-center mx-auto mb-6 rounded-lg overflow-hidden">
                         {category.image_url ? (
                           <img
                             src={category.image_url}
                             alt={category.name}
-                            className="w-6 h-6 object-contain"
+                            className="w-full h-full object-contain bg-transparent transition-transform duration-300 group-hover:scale-110"
+                            style={{ background: "transparent" }}
                             onError={(e) => {
                               // Fallback to Calendar icon if image fails to load
                               const target = e.target as HTMLImageElement;
@@ -354,15 +400,15 @@ const Index = () => {
                               const calendarIcon =
                                 document.createElement("div");
                               calendarIcon.innerHTML =
-                                '<svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                                '<svg class="w-16 h-16 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
                               target.parentNode?.appendChild(calendarIcon);
                             }}
                           />
                         ) : (
-                          <Calendar className="w-6 h-6 text-primary" />
+                          <Calendar className="w-16 h-16 text-primary transition-transform duration-300 group-hover:scale-110" />
                         )}
                       </div>
-                      <h3 className="font-semibold group-hover:text-primary transition-colors">
+                      <h3 className="font-semibold text-lg group-hover:text-primary transition-colors leading-tight">
                         {category.name}
                       </h3>
                     </CardContent>
@@ -379,24 +425,41 @@ const Index = () => {
           </div>
         </div>
       </section>
-
       {/* CTA Section */}
-      <section className="py-20 bg-primary text-white">
+      <section
+        className="py-20 text-white"
+        style={{
+          backgroundColor: shopInfo?.header_7_background_color || "#7c3bed",
+        }}
+      >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold mb-4">
-            Ready to Join the Experience?
+          <h2
+            className="text-4xl font-bold mb-4"
+            style={{
+              color: shopInfo?.header_7_font_color || "#ffffff",
+            }}
+          >
+            {shopInfo?.header_7 || "Ready to Join the Experience?"}
           </h2>
-          <div className="text-xl mb-8 text-white/90 max-w-2xl mx-auto">
-            Create your account today and start discovering amazing events in
-            your area
+          <div
+            className="text-xl mb-8 text-white/90 max-w-2xl mx-auto"
+            style={{
+              color: shopInfo?.header_8_font_color || "#ffffff",
+            }}
+          >
+            {shopInfo?.header_8}
           </div>
           <Button
             size="lg"
             asChild
-            className="btn-glow bg-white text-foreground hover:bg-white/90"
+            className="btn-glow hover:opacity-90 transition-opacity"
+            style={{
+              backgroundColor: shopInfo?.header_9_background_color || "#ffffff",
+              color: shopInfo?.header_9_font_color || "#000000",
+            }}
           >
             <Link to="/auth?tab=signup">
-              Get Started Now
+              {shopInfo?.header_9}
               <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
           </Button>

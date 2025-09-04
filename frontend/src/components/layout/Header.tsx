@@ -1,4 +1,4 @@
-// Updated Header component to use shops info
+// Updated Header component to use dynamic menu names from API
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -10,6 +10,7 @@ import {
   Settings,
   LogOut,
   ExternalLink,
+  ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
 
         setDynamicMenus(headerMenus);
 
-        // Fetch shops info separately to get the shop name
+        // Fetch shops info separately to get the shop name and menu configurations
         const shopInfoData = await apiService.getShopsInfo();
         if (shopInfoData) {
           setShopInfo(shopInfoData);
@@ -117,6 +118,34 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     navigate("/");
   };
 
+  // Helper function to handle user menu item clicks
+  const handleUserMenuClick = (url: string) => {
+    if (isExternalUrl(url)) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } else {
+      navigate(url);
+    }
+  };
+
+  // Get dynamic menu names from the first menu item's shop info (they all have the same shop info)
+  const getMenuNames = () => {
+    // Use shopInfo if available, otherwise fall back to the first menu's shop info
+    const sourceInfo =
+      shopInfo || (dynamicMenus.length > 0 ? dynamicMenus[0]._shop_info : null);
+
+    return {
+      dashboard: sourceInfo?.user_dashboard_name || "Dashboard",
+      shoppingCart: sourceInfo?.user_shopping_cart_name || "Shopping Cart",
+      settings: sourceInfo?.user_setting_name || "Settings",
+      logout: sourceInfo?.user_logout_name || "Log out",
+      dashboardUrl: sourceInfo?.user_dashboard_url || "/dashboard",
+      shoppingCartUrl: sourceInfo?.user_shopping_cart_url || "/cart",
+      settingsUrl: sourceInfo?.user_settings_url || "/settings",
+    };
+  };
+
+  const menuNames = getMenuNames();
+
   // Render dynamic menu item function remains the same
   const renderDynamicMenuItem = (menu: DynamicMenu, isMobile = false) => {
     const menuUrl = getMenuUrl(menu);
@@ -132,7 +161,10 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
       className: baseClasses,
       onClick: isMobile ? () => setIsMenuOpen(false) : undefined,
       style: {
-        color: menu.font_color || undefined,
+        color:
+          menu.font_color && menu.font_color !== "null"
+            ? menu.font_color
+            : undefined,
       },
     };
 
@@ -171,7 +203,11 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
 
   // Dynamic header styles
   const headerStyle = {
-    backgroundColor: shopInfo?.menu_header_background_color || undefined,
+    backgroundColor:
+      shopInfo?.menu_header_background_color &&
+      shopInfo.menu_header_background_color !== "null"
+        ? shopInfo.menu_header_background_color
+        : undefined,
   };
 
   return (
@@ -226,9 +262,14 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
           >
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              {shopInfo?.header_4_font_color && (
+                <style>
+                  {`.search-input::placeholder { color: ${shopInfo.header_4_font_color} !important; }`}
+                </style>
+              )}
               <Input
                 type="search"
-                placeholder="Search events..."
+                placeholder={shopInfo?.header_4 || "Search..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-muted/50 border-0 focus:bg-surface focus:ring-2 focus:ring-primary/20"
@@ -263,31 +304,60 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
                     </div>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="w-full cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      Dashboard
-                    </Link>
+
+                  {/* Dynamic Dashboard Menu Item */}
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => handleUserMenuClick(menuNames.dashboardUrl)}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    {menuNames.dashboard}
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/my-passes" className="w-full cursor-pointer">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      My Passes
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="w-full cursor-pointer">
+
+                  {/* Dynamic Shopping Cart Menu Item - only show if name is provided */}
+                  {menuNames.shoppingCart && menuNames.shoppingCart.trim() && (
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        handleUserMenuClick(menuNames.shoppingCartUrl)
+                      }
+                    >
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      {menuNames.shoppingCart}
+                    </DropdownMenuItem>
+                  )}
+
+                  {/* My Passes - Keep this as fallback if no shopping cart */}
+                  {(!menuNames.shoppingCart ||
+                    !menuNames.shoppingCart.trim()) && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/my-passes" className="w-full cursor-pointer">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        My Passes
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
+                  {/* Dynamic Settings Menu Item - only show if name is provided */}
+                  {menuNames.settings && menuNames.settings.trim() && (
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => handleUserMenuClick(menuNames.settingsUrl)}
+                    >
                       <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
+                      {menuNames.settings}
+                    </DropdownMenuItem>
+                  )}
+
                   <DropdownMenuSeparator />
+
+                  {/* Dynamic Logout Menu Item */}
                   <DropdownMenuItem
                     className="cursor-pointer text-destructive focus:text-destructive"
                     onClick={handleLogout}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
-                    Log out
+                    {menuNames.logout}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -321,7 +391,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               type="search"
-              placeholder="Search events..."
+              placeholder={shopInfo?.header_4 || "Search..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-muted/50 border-0"

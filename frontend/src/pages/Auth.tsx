@@ -18,18 +18,94 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { apiService } from "@/services/api";
 
 const Auth: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useUser();
   const { isSignedIn } = useAuth();
+  const [shopInfo, setShopInfo] = React.useState(null);
 
-  // Redirect if already signed in
+  // Fetch shop info to get redirect URLs
   React.useEffect(() => {
-    if (isSignedIn && user) {
-      navigate("/");
+    const fetchShopInfo = async () => {
+      try {
+        const info = await apiService.getShopsInfo();
+        setShopInfo(info);
+      } catch (error) {
+        console.error("Failed to load shop info:", error);
+      }
+    };
+
+    fetchShopInfo();
+  }, []);
+
+  // Helper function to determine redirect URL
+  const getRedirectUrl = (type: "signin" | "signup") => {
+    if (!shopInfo) return "/";
+
+    const redirectUrl =
+      type === "signin"
+        ? shopInfo.redirect_after_signin
+        : shopInfo.redirect_after_signup;
+
+    // Check if it's an external URL
+    if (
+      redirectUrl &&
+      (redirectUrl.startsWith("http://") || redirectUrl.startsWith("https://"))
+    ) {
+      // For external URLs, you might want to open in same window or redirect
+      return redirectUrl;
     }
-  }, [isSignedIn, user, navigate]);
+
+    // For internal URLs or empty/null values, use default dashboard or home
+    if (redirectUrl && !redirectUrl.startsWith("http")) {
+      return redirectUrl;
+    }
+
+    // Fallback to dashboard URL or home
+    return shopInfo.user_dashboard_url &&
+      !shopInfo.user_dashboard_url.startsWith("http")
+      ? shopInfo.user_dashboard_url
+      : "/";
+  };
+
+  // Handle redirect after successful authentication
+  React.useEffect(() => {
+    if (isSignedIn && user && shopInfo) {
+      const redirectUrl = getRedirectUrl("signin");
+
+      // If it's an external URL, redirect to it
+      if (
+        redirectUrl.startsWith("http://") ||
+        redirectUrl.startsWith("https://")
+      ) {
+        window.location.href = redirectUrl;
+      } else {
+        // Internal navigation
+        navigate(redirectUrl);
+      }
+    }
+  }, [isSignedIn, user, shopInfo, navigate]);
+
+  // Get the URLs for Clerk configuration
+  const getClerkRedirectUrls = () => {
+    if (!shopInfo) return { signInUrl: "/", signUpUrl: "/" };
+
+    const signInRedirect = getRedirectUrl("signin");
+    const signUpRedirect = getRedirectUrl("signup");
+
+    return {
+      signInUrl: signInRedirect.startsWith("http")
+        ? signInRedirect
+        : `${window.location.origin}${signInRedirect}`,
+      signUpUrl: signUpRedirect.startsWith("http")
+        ? signUpRedirect
+        : `${window.location.origin}${signUpRedirect}`,
+    };
+  };
+
+  const redirectUrls = getClerkRedirectUrls();
 
   return (
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
@@ -58,10 +134,11 @@ const Auth: React.FC = () => {
               <CardTitle
                 style={{ color: "black", fontSize: "24px", fontWeight: "bold" }}
               >
-                Welcome to EventHub
+                Welcome to {shopInfo?._shops?.name || "EventHub"}
               </CardTitle>
               <CardDescription style={{ color: "#666", fontSize: "14px" }}>
-                Join thousands of event enthusiasts worldwide
+                {shopInfo?.description ||
+                  "Join thousands of event enthusiasts worldwide"}
               </CardDescription>
             </CardHeader>
 
@@ -106,6 +183,7 @@ const Auth: React.FC = () => {
                     <SignIn
                       routing="hash"
                       signUpUrl="#/auth?tab=signup"
+                      redirectUrl={redirectUrls.signInUrl}
                       appearance={{
                         elements: {
                           formButtonPrimary: {
@@ -141,6 +219,7 @@ const Auth: React.FC = () => {
                     <SignUp
                       routing="hash"
                       signInUrl="#/auth?tab=login"
+                      redirectUrl={redirectUrls.signUpUrl}
                       appearance={{
                         elements: {
                           formButtonPrimary: {
@@ -173,12 +252,6 @@ const Auth: React.FC = () => {
             </CardContent>
           </Card>
         </SignedOut>
-
-        <SignedIn>
-          <div className="text-center text-white">
-            <p>You are already signed in! Redirecting...</p>
-          </div>
-        </SignedIn>
       </div>
     </div>
   );
