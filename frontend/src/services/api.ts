@@ -138,8 +138,7 @@ interface ReviewsResponse {
     Total_items: number;
   }[];
 }
-
-// dynamic menu interface
+// dynamic menu interface - Updated to match API response
 interface DynamicMenu {
   id: number;
   created_at: number;
@@ -158,17 +157,31 @@ interface DynamicMenu {
   _shop_info: Shops_Info; // Nested object
 }
 
+// Updated Shops_Info interface to include all fields from API response
 interface Shops_Info {
   id: number;
   shops_id: string;
   title: string;
   description: string;
   logo: string;
+  header_4: string;
+  header_4_font_color: string;
   menu_header_background_color: string;
   menu_footer_background_color: string;
   copyright_text: string;
+  user_dashboard_url: string;
+  user_settings_url: string;
+  user_shopping_cart_url: string;
+  redirect_after_signup: string;
+  redirect_after_signin: string;
+  redirect_after_logout: string;
+  user_dashboard_name: string;
+  user_shopping_cart_name: string;
+  user_setting_name: string;
+  user_logout_name: string;
 }
-// Updated ShopInfo interface to match API response
+
+// Updated ShopInfo interface to remove duplicate definition and include all necessary fields
 interface ShopInfo {
   id: number;
   created_at: number;
@@ -191,6 +204,14 @@ interface ShopInfo {
   header_5: string;
   header_5_font_color: string;
   header_6: string;
+  header_7: string;
+  header_7_font_color: string;
+  header_7_background_color: string;
+  header_8: string;
+  header_8_font_color: string;
+  header_9: string;
+  header_9_font_color: string;
+  header_9_background_color: string;
   menu_header_background_color: string;
   menu_footer_background_color: string;
   Items_categories_title: string;
@@ -198,6 +219,53 @@ interface ShopInfo {
   copyright_text: string;
   menu_header_font_color: string;
   menu_footer_font_color: string;
+
+  // User-related URLs and names from API response
+  user_dashboard_url: string;
+  user_settings_url: string;
+  user_shopping_cart_url: string;
+  redirect_after_signup: string;
+  redirect_after_signin: string;
+  redirect_after_logout: string;
+  user_dashboard_name: string;
+  user_shopping_cart_name: string;
+  user_setting_name: string;
+  user_logout_name: string;
+
+  // Nested objects from API response:
+  _shop_action_buttons_of_shops?: {
+    items: Array<{
+      id: number;
+      created_at: number;
+      shops_id: string;
+      name: string;
+      redirect_url: string;
+      Open_in_new_window: boolean;
+      redirect_url_type: string;
+      seq: number;
+      background_color: string;
+      font_color: string;
+    }>;
+    itemsReceived: number;
+    curPage: number;
+    nextPage: number | null;
+    prevPage: number | null;
+    offset: number | null;
+    perPage: number | null;
+    itemsTotal: number | null;
+    pageTotal: number | null;
+  };
+
+  _shop_stats_of_shops?: Array<{
+    id: number;
+    created_at: number;
+    shops_id: string;
+    image_url: string;
+    title: string;
+    description: string;
+    seq: number;
+  }>;
+
   _shops: {
     id: string;
     created_at: number;
@@ -209,7 +277,6 @@ interface ShopInfo {
     slug: string;
   };
 }
-
 interface ProductFilters {
   search?: string;
   shopId?: string;

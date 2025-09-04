@@ -126,14 +126,14 @@ export const Footer: React.FC<FooterProps> = ({ shopId }) => {
                 {shopInfo.logo && (
                   <img
                     src={shopInfo.logo}
-                    alt={`${shopInfo._shops?.name || shopInfo.title} Logo`}
+                    alt={`${shopInfo.title} Logo`}
                     className="w-8 h-8 object-contain"
                   />
                 )}
                 {/* Use _shops.name if available, fallback to title */}
                 {shopInfo._shops?.name && (
                   <span className="text-xl font-bold gradient-text">
-                    {shopInfo._shops.name}
+                    {shopInfo.title}
                   </span>
                 )}
               </div>
