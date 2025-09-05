@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 
-// ===== USER & AUTH TYPES =====
+// ===== ALL YOUR EXISTING TYPES (keeping them as-is) =====
 export interface User {
   id: string;
   email: string;
@@ -19,7 +19,6 @@ export interface SignupData extends AuthCredentials {
   name: string;
 }
 
-// ===== LOCATION & SHOP TYPES =====
 export interface LocationPoint {
   latitude: number;
   longitude: number;
@@ -33,7 +32,6 @@ export interface Shop {
   website?: string;
 }
 
-// ===== EVENT TYPES =====
 export interface EventImage {
   id: number;
   items_id: number;
@@ -86,7 +84,6 @@ interface EventCardProps {
   className?: string;
 }
 
-// ===== MENU TYPES =====
 export interface MenuItem {
   id: string;
   title: string;
@@ -103,7 +100,6 @@ export interface MenuItem {
   Open_new_window: boolean;
 }
 
-//Review interface
 interface Review {
   id: string;
   created_at: number;
@@ -122,7 +118,6 @@ interface Review {
   };
 }
 
-// Reviews Response
 interface ReviewsResponse {
   itemsReceived: number;
   curPage: number;
@@ -138,7 +133,7 @@ interface ReviewsResponse {
     Total_items: number;
   }[];
 }
-// dynamic menu interface - Updated to match API response
+
 interface DynamicMenu {
   id: number;
   created_at: number;
@@ -154,10 +149,9 @@ interface DynamicMenu {
   image_url: string;
   background_color: string;
   font_color: string;
-  _shop_info: Shops_Info; // Nested object
+  _shop_info: Shops_Info;
 }
 
-// Updated Shops_Info interface to include all fields from API response
 interface Shops_Info {
   id: number;
   shops_id: string;
@@ -181,7 +175,6 @@ interface Shops_Info {
   user_logout_name: string;
 }
 
-// Updated ShopInfo interface to remove duplicate definition and include all necessary fields
 interface ShopInfo {
   id: number;
   created_at: number;
@@ -219,8 +212,6 @@ interface ShopInfo {
   copyright_text: string;
   menu_header_font_color: string;
   menu_footer_font_color: string;
-
-  // User-related URLs and names from API response
   user_dashboard_url: string;
   user_settings_url: string;
   user_shopping_cart_url: string;
@@ -231,8 +222,6 @@ interface ShopInfo {
   user_shopping_cart_name: string;
   user_setting_name: string;
   user_logout_name: string;
-
-  // Nested objects from API response:
   _shop_action_buttons_of_shops?: {
     items: Array<{
       id: number;
@@ -255,7 +244,6 @@ interface ShopInfo {
     itemsTotal: number | null;
     pageTotal: number | null;
   };
-
   _shop_stats_of_shops?: Array<{
     id: number;
     created_at: number;
@@ -265,7 +253,6 @@ interface ShopInfo {
     description: string;
     seq: number;
   }>;
-
   _shops: {
     id: string;
     created_at: number;
@@ -277,53 +264,11 @@ interface ShopInfo {
     slug: string;
   };
 }
+
 interface ProductFilters {
   search?: string;
   shopId?: string;
   item_type?: string;
-}
-
-// shop info interface
-interface ShopInfo {
-  id: number;
-  created_at: number;
-  shops_id: string;
-  title: string;
-  description: string;
-  logo: string;
-  seo_script_text: string | null;
-  home_image_url: string;
-  hide_home_image_url: boolean;
-  home_background_color: string;
-  header_1: string;
-  header_1_font_color: string;
-  header_2: string;
-  header_2_font_color: string;
-  header_3: string;
-  header_3_font_color: string;
-  header_4: string;
-  header_4_font_color: string;
-  header_5: string;
-  header_5_font_color: string;
-  header_6: string;
-  menu_header_background_color: string;
-  menu_footer_background_color: string;
-  Items_categories_title: string;
-  Items_categories_description: string;
-  copyright_text: string;
-  menu_header_font_color: string;
-  menu_footer_font_color: string;
-  // Add the nested _shops object
-  _shops: {
-    id: string;
-    created_at: number;
-    name: string;
-    description: string;
-    logo: string;
-    custom_domain: string;
-    Is_visible: boolean;
-    slug: string;
-  };
 }
 
 interface SearchResponse {
@@ -336,7 +281,6 @@ interface SearchResponse {
   items: Event[];
 }
 
-// Related Items Interface
 interface RelatedItem {
   id: number;
   created_at: number;
@@ -352,7 +296,6 @@ interface RelatedItem {
   is_visible: boolean;
 }
 
-// Related Items Response Interface
 interface RelatedItemsResponse {
   itemsReceived: number;
   curPage: number;
@@ -376,7 +319,6 @@ type ActionButton = {
   open_in_new_window: boolean;
 };
 
-// Review interface for API data
 interface ReviewData {
   id: string;
   created_at: number;
@@ -395,7 +337,6 @@ interface ReviewData {
   };
 }
 
-// Product interface matching your API response
 interface Product {
   id: number;
   shops_id: string;
@@ -451,11 +392,11 @@ interface ProductImage {
 interface HeaderProps {
   shopId?: string;
 }
+
 interface FooterProps {
   shopId?: string;
 }
 
-// items category
 interface ItemCategory {
   id: number;
   created_at: number;
@@ -475,7 +416,6 @@ interface ItemCategory {
   };
 }
 
-// ===== ADDITIONAL TYPES FROM TYPES FILE =====
 export interface ApiResponse<T> {
   data: T;
   message?: string;
@@ -518,23 +458,42 @@ export interface AppState {
   loading: boolean;
   error: string | null;
 }
+// customerurl
+interface CustomerUrls {
+  id: string;
+  created_at: number;
+  elegant_user_id: string;
+  external_dashbord_token: string;
+  external_shopping_cart: string;
+  external_settings: string;
+}
 
+// ===== OPTIMIZED API SERVICE =====
 class ApiService {
   private api: AxiosInstance;
   private baseURL = import.meta.env.VITE_API_BASE_URL;
   private elegantAuthKey = import.meta.env.VITE_ELEGANT_AUTH_KEY;
-  private apiTimeout = parseInt(import.meta.env.VITE_API_TIMEOUT) || 30000;
+  private apiTimeout = parseInt(import.meta.env.VITE_API_TIMEOUT);
   private publicAuthToken: string | null = null;
   private currentDomain: string | null = null;
 
+  // ===== CACHING =====
+  private cache = new Map<string, { data: any; expiry: number }>();
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  // ===== REQUEST DEDUPLICATION =====
+  private pendingRequests = new Map<string, Promise<any>>();
+
+  // ===== AUTH PROMISES =====
+  private publicAuthPromise: Promise<string | null> | null = null;
+  private clerkTokenPromise: Promise<string | null> | null = null;
+
   constructor() {
-    // Validate required environment variables
     if (!this.baseURL) {
       throw new Error(
         "VITE_API_BASE_URL is not defined in environment variables"
       );
     }
-
     if (!this.elegantAuthKey) {
       throw new Error(
         "VITE_ELEGANT_AUTH_KEY is not defined in environment variables"
@@ -549,41 +508,158 @@ class ApiService {
       },
     });
 
-    // Request interceptor to handle tokens
-    this.api.interceptors.request.use(
-      async (config) => {
-        // Add domain header with port
+    this.setupInterceptors();
+    this.initializePublicAuth();
+  }
+
+  // ===== CACHING UTILITIES =====
+  private getCacheKey(url: string, params?: any): string {
+    return `${url}${params ? `?${JSON.stringify(params)}` : ""}`;
+  }
+
+  private getFromCache<T>(key: string): T | null {
+    const cached = this.cache.get(key);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.data;
+    }
+    if (cached) {
+      this.cache.delete(key); // Remove expired cache
+    }
+    return null;
+  }
+
+  private setCache<T>(key: string, data: T): void {
+    this.cache.set(key, {
+      data,
+      expiry: Date.now() + this.CACHE_DURATION,
+    });
+  }
+
+  private clearCacheByPattern(pattern: string): void {
+    for (const [key] of this.cache) {
+      if (key.includes(pattern)) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  // ===== DOMAIN EXTRACTION =====
+  private extractDomainWithPort(): string {
+    if (typeof window === "undefined") return "";
+    return window.location.hostname;
+  }
+
+  // ===== OPTIMIZED TOKEN METHODS =====
+  private async getClerkToken(): Promise<string | null> {
+    // Return cached promise if already in progress
+    if (this.clerkTokenPromise) {
+      return this.clerkTokenPromise;
+    }
+
+    this.clerkTokenPromise = new Promise(async (resolve) => {
+      try {
+        if (typeof window !== "undefined" && (window as any).Clerk) {
+          const clerk = (window as any).Clerk;
+          if (clerk.session) {
+            const token = await clerk.session.getToken();
+            resolve(token);
+            return;
+          }
+        }
+        resolve(null);
+      } catch (error) {
+        console.warn("Failed to get Clerk token:", error);
+        resolve(null);
+      } finally {
+        // Clear promise after 1 second to allow fresh attempts
+        setTimeout(() => {
+          this.clerkTokenPromise = null;
+        }, 1000);
+      }
+    });
+
+    return this.clerkTokenPromise;
+  }
+
+  private async getPublicAuthToken(): Promise<string | null> {
+    // Return cached token if available and valid
+    if (this.publicAuthToken) {
+      return this.publicAuthToken;
+    }
+
+    // Return existing promise if in progress
+    if (this.publicAuthPromise) {
+      return this.publicAuthPromise;
+    }
+
+    this.publicAuthPromise = new Promise(async (resolve) => {
+      try {
+        const headers: Record<string, string> = {
+          "X-Elegant-Auth": this.elegantAuthKey,
+          "Content-Type": "application/json",
+        };
+
         if (typeof window !== "undefined") {
-          const domain = this.extractDomainWithPort();
-          config.headers["X-Elegant-Domain"] = domain;
+          headers["X-Elegant-Domain"] = this.extractDomainWithPort();
         }
 
-        // For events, reviews, menus, and products endpoints, use public auth token
-        if (
-          config.url?.includes("/events") ||
-          config.url?.includes("/reviews") ||
-          config.url?.includes("/menus") ||
-          config.url?.includes("/products") ||
-          config.url?.includes("/shops_info") ||
-          config.url?.includes("/items/") ||
-          config.url?.includes("/related_items") ||
-          config.url?.includes("/items_categories")
-        ) {
+        const response = await axios.get(`${this.baseURL}/auth/me`, {
+          headers,
+          timeout: 10000, // Reduced timeout for auth
+        });
+
+        const responseDomain =
+          response.headers["x-elegant-domain"] ||
+          response.headers["X-Elegant-Domain"];
+        if (responseDomain) {
+          this.currentDomain = responseDomain;
+        }
+
+        if (response.data?.authToken) {
+          this.publicAuthToken = response.data.authToken;
+          resolve(this.publicAuthToken);
+          return;
+        }
+        resolve(null);
+      } catch (error) {
+        console.error("Failed to get public auth token:", error);
+        resolve(null);
+      } finally {
+        // Clear promise after completion
+        this.publicAuthPromise = null;
+      }
+    });
+
+    return this.publicAuthPromise;
+  }
+
+  // ===== OPTIMIZED INTERCEPTORS =====
+  private setupInterceptors(): void {
+    // Request interceptor
+    this.api.interceptors.request.use(
+      async (config) => {
+        // Add domain header
+        if (typeof window !== "undefined") {
+          config.headers["X-Elegant-Domain"] = this.extractDomainWithPort();
+        }
+
+        // Determine which token to use based on endpoint
+        const isPublicEndpoint = this.isPublicEndpoint(config.url || "");
+
+        if (isPublicEndpoint) {
           const publicToken = await this.getPublicAuthToken();
           if (publicToken) {
             config.headers.Authorization = `Bearer ${publicToken}`;
-            return config;
           }
-        }
-
-        // For other endpoints, try to get Clerk token first, then fallback to stored token
-        const clerkToken = await this.getClerkToken();
-        if (clerkToken) {
-          config.headers.Authorization = `Bearer ${clerkToken}`;
         } else {
-          const userToken = this.getStoredToken();
-          if (userToken) {
-            config.headers.Authorization = `Bearer ${userToken}`;
+          const clerkToken = await this.getClerkToken();
+          if (clerkToken) {
+            config.headers.Authorization = `Bearer ${clerkToken}`;
+          } else {
+            const userToken = this.getStoredToken();
+            if (userToken) {
+              config.headers.Authorization = `Bearer ${userToken}`;
+            }
           }
         }
 
@@ -592,31 +668,25 @@ class ApiService {
       (error) => Promise.reject(error)
     );
 
-    // Handle 401 errors (keeping your exact working logic)
+    // Response interceptor with improved error handling
     this.api.interceptors.response.use(
       (response) => response,
       async (error) => {
         if (error.response?.status === 401) {
-          // If it's an events, reviews, menus, or products request that failed, try to refresh public token
-          if (
-            error.config?.url?.includes("/events") ||
-            error.config?.url?.includes("/reviews") ||
-            error.config?.url?.includes("/menus") ||
-            error.config?.url?.includes("/products") ||
-            error.config?.url?.includes("/shops_info") ||
-            error.config?.url?.includes("/items/") ||
-            error.config?.url?.includes("/related_items") ||
-            error.config?.url?.includes("/items_categories")
-          ) {
-            this.publicAuthToken = null; // Clear cached public token
-            // Retry with fresh public token
+          const isPublicEndpoint = this.isPublicEndpoint(
+            error.config?.url || ""
+          );
+
+          if (isPublicEndpoint) {
+            // Clear and retry public token
+            this.publicAuthToken = null;
             const publicToken = await this.getPublicAuthToken();
             if (publicToken) {
               error.config.headers.Authorization = `Bearer ${publicToken}`;
               return this.api.request(error.config);
             }
           } else {
-            // For user-specific endpoints, clear user token and redirect if needed
+            // Clear user token and handle redirect
             this.clearStoredToken();
             if (
               window.location.pathname.startsWith("/dashboard") ||
@@ -629,36 +699,23 @@ class ApiService {
         return Promise.reject(error);
       }
     );
-
-    // Initialize public auth token on startup
-    this.initializePublicAuth();
   }
 
-  // ===== DOMAIN EXTRACTION for testing=====
-  private extractDomainWithPort(): string {
-    if (typeof window === "undefined") return "";
-
-    let domain = window.location.hostname;
-
-    return domain;
-  }
-  // New method to get Clerk token
-  private async getClerkToken(): Promise<string | null> {
-    try {
-      // Access Clerk's window object if available
-      if (typeof window !== "undefined" && (window as any).Clerk) {
-        const clerk = (window as any).Clerk;
-        if (clerk.session) {
-          return await clerk.session.getToken();
-        }
-      }
-    } catch (error) {
-      console.warn("Failed to get Clerk token:", error);
-    }
-    return null;
+  // ===== HELPER METHODS =====
+  private isPublicEndpoint(url: string): boolean {
+    return (
+      url.includes("/events") ||
+      url.includes("/reviews") ||
+      url.includes("/menus") ||
+      url.includes("/products") ||
+      url.includes("/shops_info") ||
+      url.includes("/items/") ||
+      url.includes("/related_items") ||
+      url.includes("/items_categories") ||
+      url.includes("/customer_urls")
+    );
   }
 
-  // ===== PUBLIC AUTH TOKEN =====
   private async initializePublicAuth(): Promise<void> {
     try {
       await this.getPublicAuthToken();
@@ -667,61 +724,36 @@ class ApiService {
     }
   }
 
-  private async getPublicAuthToken(): Promise<string | null> {
-    // Return cached token if available
-    if (this.publicAuthToken) {
-      return this.publicAuthToken;
+  // ===== REQUEST DEDUPLICATION =====
+  private async makeRequest<T>(
+    key: string,
+    requestFn: () => Promise<T>
+  ): Promise<T> {
+    // Check cache first
+    const cached = this.getFromCache<T>(key);
+    if (cached) {
+      return cached;
     }
+
+    // Check if request is already pending
+    if (this.pendingRequests.has(key)) {
+      return this.pendingRequests.get(key)!;
+    }
+
+    // Make new request
+    const promise = requestFn();
+    this.pendingRequests.set(key, promise);
 
     try {
-      // Add domain header to auth/me request as well
-      const headers: Record<string, string> = {
-        "X-Elegant-Auth": this.elegantAuthKey,
-        "Content-Type": "application/json",
-      };
-
-      // Add domain header to auth/me request
-      if (typeof window !== "undefined") {
-        headers["X-Elegant-Domain"] = this.extractDomainWithPort();
-      }
-
-      const response = await axios.get(`${this.baseURL}/auth/me`, {
-        headers,
-        timeout: 30000, // Increased timeout for auth as well
-      });
-
-      // Extract domain from response headers
-      const responseDomain =
-        response.headers["x-elegant-domain"] ||
-        response.headers["X-Elegant-Domain"];
-      if (responseDomain) {
-        this.currentDomain = responseDomain;
-        console.log("Domain received from server:", responseDomain);
-      }
-
-      if (response.data?.authToken) {
-        this.publicAuthToken = response.data.authToken;
-
-        return this.publicAuthToken;
-      }
-    } catch (error) {
-      console.error("Failed to get public auth token:", error);
+      const result = await promise;
+      this.setCache(key, result);
+      return result;
+    } finally {
+      this.pendingRequests.delete(key);
     }
-
-    return null;
   }
 
-  // ===== DOMAIN GETTER =====
-  public getCurrentDomain(): string | null {
-    return this.currentDomain;
-  }
-
-  // Method to manually set domain (if needed)
-  public setCurrentDomain(domain: string): void {
-    this.currentDomain = domain;
-  }
-
-  // ===== TOKEN STORAGE (for user authentication) =====
+  // ===== TOKEN STORAGE =====
   private getStoredToken(): string | null {
     return localStorage.getItem("auth_token");
   }
@@ -738,7 +770,6 @@ class ApiService {
   // ===== ERROR HANDLING =====
   handleApiError(error: any): string {
     if (error.response) {
-      // Server responded with error status
       const status = error.response.status;
       const message =
         error.response.data?.message ||
@@ -762,19 +793,18 @@ class ApiService {
           return message || `An error occurred (${status})`;
       }
     } else if (error.request) {
-      // Network error
       return "Network error. Please check your internet connection.";
     } else {
-      // Other error
       return error.message || "An unexpected error occurred.";
     }
   }
 
-  // ===== AUTH (User Authentication) =====
+  // ===== AUTH METHODS =====
   async login(credentials: AuthCredentials): Promise<User> {
     console.warn("Direct login is deprecated. Use Clerk authentication.");
     throw new Error("Please use Clerk authentication components");
   }
+
   async signup(userData: SignupData): Promise<User> {
     console.warn("Direct signup is deprecated. Use Clerk authentication.");
     throw new Error("Please use Clerk authentication components");
@@ -782,91 +812,81 @@ class ApiService {
 
   logout(): void {
     this.clearStoredToken();
-    // Let Clerk handle the actual sign out
+    this.cache.clear(); // Clear all cached data
     if (typeof window !== "undefined" && (window as any).Clerk) {
       (window as any).Clerk.signOut();
     }
   }
-  // ===== EVENTS (Now using public auth token automatically) =====
+
+  // ===== OPTIMIZED API METHODS =====
   async getEvents(filters?: EventFilters): Promise<Event[]> {
-    try {
-      const params = new URLSearchParams();
+    const cacheKey = this.getCacheKey("/events", filters);
 
-      if (filters?.search) params.append("search", filters.search);
-      if (filters?.location) params.append("location", filters.location);
-      if (filters?.itemType) params.append("item_type", filters.itemType);
-      if (filters?.shopId) params.append("shops_id", filters.shopId);
+    return this.makeRequest(cacheKey, async () => {
+      try {
+        const params = new URLSearchParams();
+        if (filters?.search) params.append("search", filters.search);
+        if (filters?.location) params.append("location", filters.location);
+        if (filters?.itemType) params.append("item_type", filters.itemType);
+        if (filters?.shopId) params.append("shops_id", filters.shopId);
 
-      const res = await this.api.get(`/events?${params.toString()}`);
-      return res.data;
-    } catch (err) {
-      console.error("Failed to fetch events", err);
-      return [];
-    }
+        const res = await this.api.get(`/events?${params.toString()}`);
+        return res.data;
+      } catch (err) {
+        console.error("Failed to fetch events", err);
+        return [];
+      }
+    });
   }
 
   async getEventById(id: number | string): Promise<Event | null> {
-    const maxRetries = 3;
-    let retryCount = 0;
+    const cacheKey = this.getCacheKey(`/events/${id}`);
 
-    while (retryCount < maxRetries) {
+    return this.makeRequest(cacheKey, async () => {
       try {
-        const res = await this.api.get(`/events/${id}`, {
-          timeout: 45000, // 45 seconds for individual event requests
-        });
+        const res = await this.api.get(`/events/${id}`);
         return res.data;
-      } catch (err: any) {
-        retryCount++;
-
-        if (err.code === "ECONNABORTED" && retryCount < maxRetries) {
-          console.warn(
-            `Attempt ${retryCount} failed for event ${id}, retrying...`
-          );
-          // Wait before retrying (exponential backoff)
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * retryCount)
-          );
-          continue;
-        }
-
+      } catch (err) {
         console.error("Failed to fetch event", err);
         return null;
       }
-    }
-
-    return null;
+    });
   }
 
-  // ===== REVIEWS =====
   async getReviewsByItemId(
     itemId: number | string
   ): Promise<ReviewsResponse | null> {
-    try {
-      const res = await this.api.get(`/reviews?items_id=${itemId}`);
-      return res.data;
-    } catch (err) {
-      console.error("Failed to fetch reviews", err);
-      return null;
-    }
+    const cacheKey = this.getCacheKey(`/reviews`, { items_id: itemId });
+
+    return this.makeRequest(cacheKey, async () => {
+      try {
+        const res = await this.api.get(`/reviews?items_id=${itemId}`);
+        return res.data;
+      } catch (err) {
+        console.error("Failed to fetch reviews", err);
+        return null;
+      }
+    });
   }
 
-  // ===== MENUS =====
   async getMenus(shopId?: string): Promise<DynamicMenu[]> {
-    try {
-      const endpoint = shopId ? `/menus/${shopId}` : "/menus";
-      const res = await this.api.get(endpoint);
-      return res.data;
-    } catch (err) {
-      console.error("Failed to fetch menus", err);
-      return [];
-    }
+    const cacheKey = this.getCacheKey("/menus", { shopId });
+
+    return this.makeRequest(cacheKey, async () => {
+      try {
+        const endpoint = shopId ? `/menus/${shopId}` : "/menus";
+        const res = await this.api.get(endpoint);
+        return res.data;
+      } catch (err) {
+        console.error("Failed to fetch menus", err);
+        return [];
+      }
+    });
   }
 
-  // ===== DYNAMIC MENUS (New method specifically for dynamic menus) =====
   async getDynamicMenus(shopId?: string): Promise<DynamicMenu[]> {
     try {
       const menus = await this.getMenus(shopId);
-      // Filter visible menus and sort by sequence
       return menus
         .filter((menu) => menu.is_visible)
         .sort((a, b) => a.seq - b.seq);
@@ -875,25 +895,27 @@ class ApiService {
       return [];
     }
   }
+
   async getShopById(shopId?: string): Promise<any> {
-    try {
-      const res = await this.api.get(`/shops/${shopId}`);
-      return res.data;
-    } catch (err) {
-      console.error("Failed to fetch shop", err);
-      return null;
-    }
+    const cacheKey = this.getCacheKey(`/shops/${shopId}`);
+
+    return this.makeRequest(cacheKey, async () => {
+      try {
+        const res = await this.api.get(`/shops/${shopId}`);
+        return res.data;
+      } catch (err) {
+        console.error("Failed to fetch shop", err);
+        return null;
+      }
+    });
   }
 
-  // ===== USER =====
   getCurrentUser(): User | null {
-    // First try to get user from Clerk
     if (typeof window !== "undefined" && (window as any).Clerk) {
       const clerk = (window as any).Clerk;
       if (clerk.user) {
         return {
           id: clerk.user.id,
-
           email: clerk.user.emailAddresses[0]?.emailAddress || "",
           name: clerk.user.fullName || clerk.user.firstName || "",
           avatar: clerk.user.imageUrl,
@@ -902,7 +924,6 @@ class ApiService {
       }
     }
 
-    // Fallback to localStorage
     try {
       const data = localStorage.getItem("user_data");
       return data ? JSON.parse(data) : null;
@@ -912,119 +933,167 @@ class ApiService {
   }
 
   isAuthenticated(): boolean {
-    // Check Clerk authentication first
     if (typeof window !== "undefined" && (window as any).Clerk) {
       return !!(window as any).Clerk.session;
     }
-    // Fallback to stored token
     return !!this.getStoredToken();
   }
 
-  // products function
   async getProducts(filters?: ProductFilters): Promise<Product[]> {
-    try {
-      const params = new URLSearchParams();
+    const cacheKey = this.getCacheKey("/products", filters);
 
-      if (filters?.search) params.append("search", filters.search);
-      if (filters?.shopId) params.append("shops_id", filters.shopId);
-      if (filters?.item_type) params.append("item_type", filters.item_type);
+    return this.makeRequest(cacheKey, async () => {
+      try {
+        const params = new URLSearchParams();
+        if (filters?.search) params.append("search", filters.search);
+        if (filters?.shopId) params.append("shops_id", filters.shopId);
+        if (filters?.item_type) params.append("item_type", filters.item_type);
 
-      const res = await this.api.get(`/products?${params.toString()}`);
-      return res.data;
-    } catch (err) {
-      console.error("Failed to fetch products", err);
-      return [];
-    }
+        const res = await this.api.get(`/products?${params.toString()}`);
+        return res.data;
+      } catch (err) {
+        console.error("Failed to fetch products", err);
+        return [];
+      }
+    });
   }
 
   async getProductById(id: number | string): Promise<Product | null> {
-    try {
-      const res = await this.api.get(`/products/${id}`);
-      return res.data;
-    } catch (err) {
-      console.error("Failed to fetch product", err);
-      return null;
-    }
+    const cacheKey = this.getCacheKey(`/products/${id}`);
+
+    return this.makeRequest(cacheKey, async () => {
+      try {
+        const res = await this.api.get(`/products/${id}`);
+        return res.data;
+      } catch (err) {
+        console.error("Failed to fetch product", err);
+        return null;
+      }
+    });
   }
-  // ===== ITEMS CATEGORIES =====
+
   async getItemsCategories(shopId?: string): Promise<ItemCategory[]> {
+    const cacheKey = this.getCacheKey("/items_categories", { shopId });
+
+    return this.makeRequest(cacheKey, async () => {
+      try {
+        const params = new URLSearchParams();
+        if (shopId) params.append("shops_id", shopId);
+
+        const endpoint = params.toString()
+          ? `/items_categories?${params.toString()}`
+          : "/items_categories";
+        const res = await this.api.get(endpoint);
+
+        return res.data
+          .filter((category: ItemCategory) => category.Is_visible)
+          .sort((a: ItemCategory, b: ItemCategory) =>
+            a.name.localeCompare(b.name)
+          );
+      } catch (err) {
+        console.error("Failed to fetch items categories", err);
+        return [];
+      }
+    });
+  }
+
+  // customers url get function
+  async getCustomerUrls(): Promise<CustomerUrls | null> {
+    // Don't cache this as it's user-specific
     try {
-      const params = new URLSearchParams();
-      if (shopId) {
-        params.append("shops_id", shopId);
+      const user = this.getCurrentUser();
+      if (!user || !user.id) {
+        console.warn("No user found for customer URLs request");
+        return null;
       }
 
-      const endpoint = params.toString()
-        ? `/items_categories?${params.toString()}`
-        : "/items_categories";
+      const headers: Record<string, string> = {
+        "x-elegant-userid": user.id,
+      };
 
-      const res = await this.api.get(endpoint);
-
-      // Filter only visible categories and sort by name
-      return res.data
-        .filter((category: ItemCategory) => category.Is_visible)
-        .sort((a: ItemCategory, b: ItemCategory) =>
-          a.name.localeCompare(b.name)
-        );
-    } catch (err) {
-      console.error("Failed to fetch items categories", err);
-      return [];
-    }
-  }
-
-  // shop info
-
-  async getShopsInfo(): Promise<ShopInfo | null> {
-    try {
-      const res = await this.api.get("/shops_info");
+      const res = await this.api.get("/customer_urls", { headers });
       return res.data;
     } catch (err) {
-      console.error("Failed to fetch shops info", err);
+      console.error("Failed to fetch customer URLs", err);
       return null;
     }
   }
 
-  // ===== SEARCH =====
+  async getShopsInfo(): Promise<ShopInfo | null> {
+    const cacheKey = this.getCacheKey("/shops_info");
+
+    return this.makeRequest(cacheKey, async () => {
+      try {
+        const res = await this.api.get("/shops_info");
+        return res.data;
+      } catch (err) {
+        console.error("Failed to fetch shops info", err);
+        return null;
+      }
+    });
+  }
+
   async searchItems(
     query: string,
     shopId?: string
   ): Promise<SearchResponse | null> {
-    try {
-      // Build the search URL
-      let searchUrl = `/items/${encodeURIComponent(query)}`;
+    const cacheKey = this.getCacheKey(`/items/${query}`, { shopId });
 
-      // Add shopId as query parameter if provided
-      if (shopId) {
-        searchUrl += `?shops_id=${shopId}`;
+    return this.makeRequest(cacheKey, async () => {
+      try {
+        let searchUrl = `/items/${encodeURIComponent(query)}`;
+        if (shopId) {
+          searchUrl += `?shops_id=${shopId}`;
+        }
+
+        const res = await this.api.get(searchUrl);
+        return res.data;
+      } catch (err) {
+        console.error("Failed to search items", err);
+        return null;
       }
-
-      const res = await this.api.get(searchUrl);
-      return res.data;
-    } catch (err) {
-      console.error("Failed to search items", err);
-      return null;
-    }
+    });
   }
 
-  //related items
   async getRelatedItems(
     itemId: number | string
   ): Promise<RelatedItemsResponse | null> {
-    try {
-      const res = await this.api.get(`/related_items/${itemId}`);
-      return res.data;
-    } catch (err) {
-      console.error("Failed to fetch related items", err);
-      return null;
-    }
+    const cacheKey = this.getCacheKey(`/related_items/${itemId}`);
+
+    return this.makeRequest(cacheKey, async () => {
+      try {
+        const res = await this.api.get(`/related_items/${itemId}`);
+        return res.data;
+      } catch (err) {
+        console.error("Failed to fetch related items", err);
+        return null;
+      }
+    });
   }
 
-  // ===== UTILITY =====
-  // Method to manually refresh public auth token if needed
+  // ===== UTILITY METHODS =====
   async refreshPublicAuthToken(): Promise<boolean> {
     this.publicAuthToken = null;
+    this.publicAuthPromise = null;
     const token = await this.getPublicAuthToken();
     return !!token;
+  }
+
+  getCurrentDomain(): string | null {
+    return this.currentDomain;
+  }
+
+  setCurrentDomain(domain: string): void {
+    this.currentDomain = domain;
+  }
+
+  // ===== CACHE MANAGEMENT =====
+  clearCache(): void {
+    this.cache.clear();
+  }
+
+  clearCacheForEndpoint(endpoint: string): void {
+    this.clearCacheByPattern(endpoint);
   }
 }
 
@@ -1043,6 +1112,8 @@ export type {
   FooterProps,
   ShopInfo,
   ItemCategory,
+  CustomerUrls,
 };
+
 export const apiService = new ApiService();
 export default apiService;

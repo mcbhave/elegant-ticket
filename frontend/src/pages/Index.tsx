@@ -381,7 +381,7 @@ const Index = () => {
               displayCategories.map((category) => (
                 <Link
                   key={category.id}
-                  to={`/events?category=${category.category_type.toLowerCase()}`}
+                  to={`/search/${encodeURIComponent(category.category_type)}`}
                   className="group w-full max-w-[280px]"
                 >
                   <Card className="card-hover bg-card border shadow-lg h-full min-h-[280px] w-full transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
