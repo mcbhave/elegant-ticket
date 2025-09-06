@@ -65,6 +65,7 @@ const Index = () => {
   };
 
   // Function to handle action button clicks
+  // Function to handle action button clicks
   const handleActionButtonClick = (button: any) => {
     switch (button.redirect_url_type) {
       case "tel":
@@ -77,7 +78,20 @@ const Index = () => {
         if (button.Open_in_new_window) {
           window.open(button.redirect_url, "_blank");
         } else {
-          navigate(button.redirect_url);
+          // Check if it's an internal route (starts with /) or external URL
+          if (button.redirect_url.startsWith("/")) {
+            // Internal route - use React Router navigate
+            navigate(button.redirect_url);
+          } else if (
+            button.redirect_url.startsWith("http://") ||
+            button.redirect_url.startsWith("https://")
+          ) {
+            // External URL - navigate in same tab
+            window.location.href = button.redirect_url;
+          } else {
+            // Assume it's an internal route without leading slash
+            navigate(`/${button.redirect_url}`);
+          }
         }
         break;
       default:
@@ -85,6 +99,7 @@ const Index = () => {
         if (button.Open_in_new_window) {
           window.open(button.redirect_url, "_blank");
         } else {
+          // For external URLs, use window.location.href to open in same tab
           window.location.href = button.redirect_url;
         }
     }
