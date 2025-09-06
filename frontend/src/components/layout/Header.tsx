@@ -135,7 +135,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
   // Helper function to handle user menu item clicks
   const handleUserMenuClick = (url: string) => {
     if (isExternalUrl(url)) {
-      window.open(url, "_blank", "noopener,noreferrer");
+      window.location.href = url;
     } else {
       navigate(url);
     }
