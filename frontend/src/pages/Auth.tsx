@@ -25,12 +25,14 @@ const Auth: React.FC = () => {
   const { user } = useUser();
   const { isSignedIn } = useAuth();
   const [shopInfo, setShopInfo] = React.useState(null);
+  const [isRedirecting, setIsRedirecting] = React.useState(false);
 
   // Fetch shop info to get redirect URLs
   React.useEffect(() => {
     const fetchShopInfo = async () => {
       try {
         const info = await apiService.getShopsInfo();
+        console.log("Shop info fetched:", info);
         setShopInfo(info);
       } catch (error) {
         console.error("Failed to load shop info:", error);
@@ -40,72 +42,44 @@ const Auth: React.FC = () => {
     fetchShopInfo();
   }, []);
 
-  // Helper function to determine redirect URL
-  const getRedirectUrl = (type: "signin" | "signup") => {
-    if (!shopInfo) return "/";
-
-    const redirectUrl =
-      type === "signin"
-        ? shopInfo.redirect_after_signin
-        : shopInfo.redirect_after_signup;
-
-    // Check if it's an external URL
-    if (
-      redirectUrl &&
-      (redirectUrl.startsWith("http://") || redirectUrl.startsWith("https://"))
-    ) {
-      // For external URLs, you might want to open in same window or redirect
-      return redirectUrl;
-    }
-
-    // For internal URLs or empty/null values, use default dashboard or home
-    if (redirectUrl && !redirectUrl.startsWith("http")) {
-      return redirectUrl;
-    }
-
-    // Fallback to dashboard URL or home
-    return shopInfo.user_dashboard_url &&
-      !shopInfo.user_dashboard_url.startsWith("http")
-      ? shopInfo.user_dashboard_url
-      : "/";
-  };
-
   // Handle redirect after successful authentication
   React.useEffect(() => {
-    if (isSignedIn && user && shopInfo) {
-      const redirectUrl = getRedirectUrl("signin");
+    if (isSignedIn && user && shopInfo && !isRedirecting) {
+      console.log("User authenticated, attempting redirect...");
+      console.log("Shop info:", shopInfo);
 
-      // If it's an external URL, redirect to it
+      setIsRedirecting(true);
+
+      // Get the redirect URL from shop info
+      const redirectUrl =
+        shopInfo.redirect_after_signin || shopInfo.user_dashboard_url || "/";
+
+      console.log("Redirect URL:", redirectUrl);
+
+      // Immediate redirect to avoid popup blockers
       if (
         redirectUrl.startsWith("http://") ||
         redirectUrl.startsWith("https://")
       ) {
-        window.location.href = redirectUrl;
+        console.log("External redirect to new tab:", redirectUrl);
+        // For external URLs, open in new tab
+        window.open(redirectUrl, "_blank", "noopener,noreferrer");
+        // Redirect the original tab back to home/landing page
+        navigate("/");
       } else {
-        // Internal navigation
+        console.log("Internal redirect to:", redirectUrl);
+        // For internal URLs, use React Router
         navigate(redirectUrl);
       }
     }
-  }, [isSignedIn, user, shopInfo, navigate]);
+  }, [isSignedIn, user, shopInfo, navigate, isRedirecting]);
 
-  // Get the URLs for Clerk configuration
-  const getClerkRedirectUrls = () => {
-    if (!shopInfo) return { signInUrl: "/", signUpUrl: "/" };
-
-    const signInRedirect = getRedirectUrl("signin");
-    const signUpRedirect = getRedirectUrl("signup");
-
-    return {
-      signInUrl: signInRedirect.startsWith("http")
-        ? signInRedirect
-        : `${window.location.origin}${signInRedirect}`,
-      signUpUrl: signUpRedirect.startsWith("http")
-        ? signUpRedirect
-        : `${window.location.origin}${signUpRedirect}`,
-    };
-  };
-
-  const redirectUrls = getClerkRedirectUrls();
+  // Reset redirecting flag when user signs out
+  React.useEffect(() => {
+    if (!isSignedIn) {
+      setIsRedirecting(false);
+    }
+  }, [isSignedIn]);
 
   return (
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
@@ -183,7 +157,7 @@ const Auth: React.FC = () => {
                     <SignIn
                       routing="hash"
                       signUpUrl="#/auth?tab=signup"
-                      redirectUrl={redirectUrls.signInUrl}
+                      forceRedirectUrl={window.location.origin + "/auth"}
                       appearance={{
                         elements: {
                           formButtonPrimary: {
@@ -219,7 +193,7 @@ const Auth: React.FC = () => {
                     <SignUp
                       routing="hash"
                       signInUrl="#/auth?tab=login"
-                      redirectUrl={redirectUrls.signUpUrl}
+                      forceRedirectUrl={window.location.origin + "/auth"}
                       appearance={{
                         elements: {
                           formButtonPrimary: {
@@ -252,6 +226,23 @@ const Auth: React.FC = () => {
             </CardContent>
           </Card>
         </SignedOut>
+
+        <SignedIn>
+          {/* Show loading state while redirecting */}
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="text-lg mb-2">Authentication successful!</div>
+              <div className="text-sm text-muted-foreground">
+                {isRedirecting ? "Redirecting..." : "Please wait..."}
+              </div>
+              {shopInfo?.redirect_after_signin && (
+                <div className="text-xs text-muted-foreground mt-2">
+                  Taking you to: {shopInfo.redirect_after_signin}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </SignedIn>
       </div>
     </div>
   );
