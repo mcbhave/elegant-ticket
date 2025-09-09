@@ -712,7 +712,8 @@ class ApiService {
       url.includes("/items/") ||
       url.includes("/related_items") ||
       url.includes("/items_categories") ||
-      url.includes("/customer_urls")
+      url.includes("/customer_urls") ||
+      url.includes("/cart_items")
     );
   }
 
@@ -1069,6 +1070,56 @@ class ApiService {
         return null;
       }
     });
+  }
+
+  // add to cart
+  async addToCart(
+    itemsId: number,
+    actionButtonsId: number,
+    shopsId: string,
+    price: number = 0
+  ): Promise<any> {
+    try {
+      // Check if user is authenticated
+      const user = this.getCurrentUser();
+      if (!user || !user.id) {
+        throw new Error(
+          "Authentication required. Please log in to add items to cart."
+        );
+      }
+
+      const payload = {
+        items_id: itemsId,
+        action_buttons_id: actionButtonsId,
+        shops_id: shopsId,
+        price: price,
+      };
+
+      // Add user ID header (similar to getCustomerUrls method)
+      const headers: Record<string, string> = {
+        "x-elegant-userid": user.id,
+      };
+
+      const res = await this.api.post("/cart_items", payload, { headers });
+
+      console.log("Item added to cart successfully:", res.data);
+      return res.data;
+    } catch (err: any) {
+      console.error("Failed to add item to cart", err);
+
+      // More specific error handling
+      if (err.response?.status === 401) {
+        throw new Error("Authentication failed. Please log in again.");
+      } else if (err.response?.status === 404) {
+        throw new Error(
+          "Cart service is currently unavailable. Please try again later."
+        );
+      } else if (err.response?.status === 403) {
+        throw new Error("You don't have permission to add items to cart.");
+      }
+
+      throw new Error(this.handleApiError(err));
+    }
   }
 
   // ===== UTILITY METHODS =====

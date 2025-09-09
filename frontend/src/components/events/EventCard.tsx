@@ -44,6 +44,50 @@ export const EventCard: React.FC<EventCardProps> = ({
   const formatEventTime = (timestamp: number) =>
     format(new Date(timestamp * 1000), "h:mm a");
 
+  const handleButtonClick = async (button: ActionButton) => {
+    try {
+      // Check if user is authenticated before attempting to add to cart
+      const isAuthenticated = apiService.isAuthenticated();
+
+      if (!isAuthenticated) {
+        // Redirect to login or show auth modal
+        const shouldLogin = confirm(
+          "Please log in to add items to your cart. Would you like to log in now?"
+        );
+        if (shouldLogin) {
+          window.location.href = "/auth"; // or your login page
+        }
+        return;
+      }
+
+      // Always call cart API on button click to increase counter
+      const price = eventDetails?.price ? parseFloat(eventDetails.price) : 0;
+      await apiService.addToCart(event.id, button.id, event.shops_id, price);
+
+      console.log("Item added to cart successfully");
+
+      // If button has URL, redirect after API call
+      if (button.sharable_link && button.sharable_link !== "null") {
+        if (button.open_in_new_window) {
+          window.open(button.sharable_link, "_blank", "noopener,noreferrer");
+        } else {
+          window.location.href = button.sharable_link;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+
+      // Show user-friendly error message
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to add item to cart. Please try again.";
+
+      // You could replace this alert with a toast notification
+      alert(errorMessage);
+    }
+  };
+
   const getEventStatus = () => {
     if (!eventDetails) return "unknown";
     const now = Date.now() / 1000;
@@ -78,16 +122,14 @@ export const EventCard: React.FC<EventCardProps> = ({
     >
       {/* Event Image */}
       <div className="relative overflow-hidden aspect-[16/10]">
-        <img
-          src={
-            primaryImage?.display_image ||
-            primaryImage?.file_url ||
-            "/placeholder.svg"
-          }
-          alt={primaryImage?.alt_text || event.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          loading="lazy"
-        />
+        {primaryImage && (
+          <img
+            src={primaryImage.display_image || primaryImage.file_url}
+            alt={primaryImage.alt_text || event.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
         {/* Status Badge */}
@@ -170,7 +212,6 @@ export const EventCard: React.FC<EventCardProps> = ({
         </div>
 
         {/* Tags - Both SEO_Tags and tags */}
-
         {
           // @ts-ignore
           (event.SEO_Tags || event.tags) && (
@@ -187,7 +228,7 @@ export const EventCard: React.FC<EventCardProps> = ({
                       <Badge
                         key={`tag-${i}`}
                         variant="outline"
-                        className="text-xs bg-green-50 text-green-700 border-green-200"
+                        className="text-xs"
                       >
                         {tag.trim()}
                       </Badge>
@@ -200,8 +241,8 @@ export const EventCard: React.FC<EventCardProps> = ({
 
       <CardFooter className="px-6 pb-6 pt-0">
         <div className="flex w-full gap-2">
-          {/* Dynamic Action Buttons - Only show for upcoming events */}
-          {getEventStatus() === "upcoming" && actionButtons.length > 0 && (
+          {/* Dynamic Action Buttons */}
+          {actionButtons.length > 0 && (
             <>
               {actionButtons.map((button) => (
                 <Button
@@ -211,19 +252,9 @@ export const EventCard: React.FC<EventCardProps> = ({
                     backgroundColor: button.background_color,
                     color: button.font_color,
                   }}
-                  asChild
+                  onClick={() => handleButtonClick(button)}
                 >
-                  <a
-                    href={button.sharable_link}
-                    target={button.open_in_new_window ? "_blank" : "_self"}
-                    rel={
-                      button.open_in_new_window
-                        ? "noopener noreferrer"
-                        : undefined
-                    }
-                  >
-                    {button.name}
-                  </a>
+                  {button.name}
                 </Button>
               ))}
             </>
