@@ -244,9 +244,7 @@ const Index = () => {
               style={{
                 color: shopInfo?.header_2_font_color || "#ffffff",
               }}
-            >
-              {shopInfo.header_2}
-            </h2>
+            ></h2>
           )}
 
           {/* Header 3 - if available */}

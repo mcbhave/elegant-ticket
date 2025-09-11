@@ -1,4 +1,5 @@
 import React from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   SignIn,
@@ -24,11 +25,11 @@ const Auth: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useUser();
   const { isSignedIn } = useAuth();
-  const [shopInfo, setShopInfo] = React.useState(null);
-  const [isRedirecting, setIsRedirecting] = React.useState(false);
+  const [shopInfo, setShopInfo] = useState(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   // Fetch shop info to get redirect URLs
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchShopInfo = async () => {
       try {
         const info = await apiService.getShopsInfo();
@@ -43,7 +44,7 @@ const Auth: React.FC = () => {
   }, []);
 
   // Handle redirect after successful authentication
-  React.useEffect(() => {
+  useEffect(() => {
     if (isSignedIn && user && shopInfo && !isRedirecting) {
       console.log("User authenticated, attempting redirect...");
       console.log("Shop info:", shopInfo);
@@ -51,8 +52,7 @@ const Auth: React.FC = () => {
       setIsRedirecting(true);
 
       // Get the redirect URL from shop info
-      const redirectUrl =
-        shopInfo.redirect_after_signin || shopInfo.user_dashboard_url || "/";
+      const redirectUrl = shopInfo.redirect_after_signin || "/";
 
       console.log("Redirect URL:", redirectUrl);
 
@@ -63,7 +63,7 @@ const Auth: React.FC = () => {
       ) {
         console.log("External redirect to new tab:", redirectUrl);
         // For external URLs, open in new tab
-        window.open(redirectUrl, "_blank", "noopener,noreferrer");
+        window.location.href = redirectUrl;
         // Redirect the original tab back to home/landing page
         navigate("/");
       } else {
@@ -75,7 +75,7 @@ const Auth: React.FC = () => {
   }, [isSignedIn, user, shopInfo, navigate, isRedirecting]);
 
   // Reset redirecting flag when user signs out
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isSignedIn) {
       setIsRedirecting(false);
     }

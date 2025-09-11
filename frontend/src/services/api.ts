@@ -1013,9 +1013,9 @@ class ApiService {
       };
 
       const res = await this.api.get("/customer_urls", { headers });
+
       return res.data;
     } catch (err) {
-      console.error("Failed to fetch customer URLs", err);
       return null;
     }
   }
@@ -1102,7 +1102,6 @@ class ApiService {
 
       const res = await this.api.post("/cart_items", payload, { headers });
 
-      console.log("Item added to cart successfully:", res.data);
       return res.data;
     } catch (err: any) {
       console.error("Failed to add item to cart", err);
