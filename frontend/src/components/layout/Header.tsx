@@ -1,4 +1,4 @@
-// Updated Header component to use dynamic menu names from API and customer URLs
+// Updated Header component to fetch fresh customer URLs on each menu click
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -65,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
   const [dynamicMenus, setDynamicMenus] = useState<DynamicMenu[]>([]);
   const [isLoadingMenus, setIsLoadingMenus] = useState(true);
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
-  const [customerUrls, setCustomerUrls] = useState<CustomerUrls | null>(null);
+  const [isLoadingUserAction, setIsLoadingUserAction] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     );
   };
 
-  // Updated fetch function to get shops_info and customer URLs
+  // Fetch initial data (menus and shop info) - no customer URLs here
   useEffect(() => {
     const fetchHeaderData = async () => {
       try {
@@ -101,23 +101,15 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
         if (shopInfoData) {
           setShopInfo(shopInfoData);
         }
-
-        // Fetch customer URLs if user is authenticated
-        if (isAuthenticated && user) {
-          const customerUrlsData = await apiService.getCustomerUrls();
-          if (customerUrlsData) {
-            setCustomerUrls(customerUrlsData);
-          }
-        }
       } catch (error) {
-        // Silent error handling - remove console.error
+        // Silent error handling
       } finally {
         setIsLoadingMenus(false);
       }
     };
 
     fetchHeaderData();
-  }, [shopId, isAuthenticated, user]);
+  }, [shopId]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,67 +124,89 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     navigate("/");
   };
 
-  // Helper function to handle user menu item clicks
-  const handleUserMenuClick = (url: string) => {
-    if (isExternalUrl(url)) {
-      window.location.href = url;
-    } else {
-      navigate(url);
+  // Updated function to only fetch customer URLs when dashboard is clicked
+  const handleUserMenuClick = async (
+    menuType: "dashboard" | "cart" | "settings"
+  ) => {
+    if (!isAuthenticated || !user) return;
+
+    // Prevent multiple simultaneous clicks
+    if (isLoadingUserAction) {
+      return;
+    }
+
+    setIsLoadingUserAction(true);
+
+    try {
+      // Get base URLs from shopInfo
+      const baseUrls = {
+        dashboard: shopInfo?.user_dashboard_url || "/dashboard",
+        cart: shopInfo?.user_shopping_cart_url || "/cart",
+        settings: shopInfo?.user_settings_url || "/settings",
+      };
+
+      let finalUrl = baseUrls[menuType];
+
+      // Only fetch customer URLs for dashboard clicks
+      if (menuType === "dashboard") {
+        try {
+          // Fetch fresh customer URLs specifically for dashboard
+          const customerUrls = await apiService.getCustomerUrls();
+
+          if (customerUrls?.external_dashbord_token) {
+            finalUrl = finalUrl + customerUrls.external_dashbord_token;
+          } else {
+          }
+        } catch (apiError) {
+          console.error(
+            "Failed to fetch customer URLs for dashboard:",
+            apiError
+          );
+        }
+      } else {
+        // For cart and settings, use base URLs directly without API call
+      }
+
+      // Handle redirection with a small delay to ensure state updates
+      setTimeout(() => {
+        if (isExternalUrl(finalUrl)) {
+          window.location.href = finalUrl;
+        } else {
+          navigate(finalUrl);
+        }
+      }, 100);
+    } catch (error) {
+      console.error(`Failed to handle ${menuType} menu click:`, error);
+
+      // Fallback to base URL on error
+      // @ts-ignore
+      const baseUrl = baseUrls[menuType];
+
+      setTimeout(() => {
+        if (isExternalUrl(baseUrl)) {
+          window.location.href = baseUrl;
+        } else {
+          navigate(baseUrl);
+        }
+      }, 100);
+    } finally {
+      // Reset loading state after a delay to prevent rapid clicks
+      setTimeout(() => {
+        setIsLoadingUserAction(false);
+      }, 500);
     }
   };
 
-  // Get dynamic menu names and combine URLs with customer tokens
+  // Get static menu names (no URLs needed here since we handle them dynamically)
   const getMenuNames = () => {
-    // Use shopInfo if available, otherwise fall back to the first menu's shop info
     const sourceInfo =
       shopInfo || (dynamicMenus.length > 0 ? dynamicMenus[0]._shop_info : null);
-
-    // Base URLs from shopInfo
-    const baseDashboardUrl = sourceInfo?.user_dashboard_url || "/dashboard";
-    const baseShoppingCartUrl = sourceInfo?.user_shopping_cart_url || "/cart";
-    const baseSettingsUrl = sourceInfo?.user_settings_url || "/settings";
-
-    // Initialize final URLs with base URLs
-    let finalDashboardUrl = baseDashboardUrl;
-    let finalShoppingCartUrl = baseShoppingCartUrl;
-    let finalSettingsUrl = baseSettingsUrl;
-
-    // If we have customer URLs and user is authenticated, append the tokens
-    if (customerUrls && isAuthenticated && user) {
-      // For dashboard URL - append the token path to the base URL
-      if (customerUrls.external_dashbord_token) {
-        // Remove trailing slash from base URL if present, then append token
-        const cleanBaseDashboard = baseDashboardUrl.endsWith("/")
-          ? baseDashboardUrl.slice(0, -1)
-          : baseDashboardUrl;
-        finalDashboardUrl = `${cleanBaseDashboard}/${customerUrls.external_dashbord_token}`;
-      }
-
-      // For shopping cart URL - append the token path to the base URL
-      if (customerUrls.external_shopping_cart) {
-        const cleanBaseCart = baseShoppingCartUrl.endsWith("/")
-          ? baseShoppingCartUrl.slice(0, -1)
-          : baseShoppingCartUrl;
-        finalShoppingCartUrl = `${cleanBaseCart}/${customerUrls.external_shopping_cart}`;
-      }
-
-      // For settings URL - append the token path to the base URL
-      if (customerUrls.external_settings) {
-        const cleanBaseSettings = baseSettingsUrl.endsWith("/")
-          ? baseSettingsUrl.slice(0, -1)
-          : baseSettingsUrl;
-        finalSettingsUrl = `${cleanBaseSettings}/${customerUrls.external_settings}`;
-      }
-    }
 
     return {
       dashboard: sourceInfo?.user_dashboard_name || "Dashboard",
       shoppingCart: sourceInfo?.user_shopping_cart_name || "Shopping Cart",
       settings: sourceInfo?.user_setting_name || "Settings",
       logout: sourceInfo?.user_logout_name || "Log out",
-      dashboardUrl: finalDashboardUrl,
-      shoppingCartUrl: finalShoppingCartUrl,
-      settingsUrl: finalSettingsUrl,
     };
   };
 
@@ -285,7 +299,6 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
               </div>
             )}
             <span className="text-xl font-bold gradient-text hidden sm:block">
-              {/* Use _shops.name if available, fallback to title */}
               {shopInfo?._shops?.name}
             </span>
           </Link>
@@ -337,6 +350,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
                   <Button
                     variant="ghost"
                     className="relative h-8 w-8 rounded-full"
+                    disabled={isLoadingUserAction}
                   >
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={user.avatar} alt={user.name} />
@@ -360,19 +374,24 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
                   {/* Dynamic Dashboard Menu Item */}
                   <DropdownMenuItem
                     className="cursor-pointer"
-                    onClick={() => handleUserMenuClick(menuNames.dashboardUrl)}
+                    onClick={() => handleUserMenuClick("dashboard")}
+                    disabled={isLoadingUserAction}
                   >
                     <User className="mr-2 h-4 w-4" />
                     {menuNames.dashboard}
+                    {isLoadingUserAction && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        Loading...
+                      </span>
+                    )}
                   </DropdownMenuItem>
 
                   {/* Dynamic Shopping Cart Menu Item - only show if name is provided */}
                   {menuNames.shoppingCart && menuNames.shoppingCart.trim() && (
                     <DropdownMenuItem
                       className="cursor-pointer"
-                      onClick={() =>
-                        handleUserMenuClick(menuNames.shoppingCartUrl)
-                      }
+                      onClick={() => handleUserMenuClick("cart")}
+                      disabled={isLoadingUserAction}
                     >
                       <ShoppingCart className="mr-2 h-4 w-4" />
                       {menuNames.shoppingCart}
@@ -383,7 +402,8 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
                   {menuNames.settings && menuNames.settings.trim() && (
                     <DropdownMenuItem
                       className="cursor-pointer"
-                      onClick={() => handleUserMenuClick(menuNames.settingsUrl)}
+                      onClick={() => handleUserMenuClick("settings")}
+                      disabled={isLoadingUserAction}
                     >
                       <Settings className="mr-2 h-4 w-4" />
                       {menuNames.settings}
