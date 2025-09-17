@@ -8,6 +8,7 @@ import React, { ReactNode, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { AuthContext, useAuthProvider } from "@/hooks/useAuth";
 import { ShopProvider, useShop } from "@/contexts/ShopContext";
+import { SEOProvider } from "@/contexts/SEOContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -26,9 +27,9 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 };
 
-// SEO Injection Component
-const SEOInjector: React.FC = () => {
-  const { shopData } = useShop(); // Assuming your ShopContext provides shopData
+// SEO Injection Component for Shop-level SEO (keep existing functionality)
+const ShopSEOInjector: React.FC = () => {
+  const { shopData } = useShop();
 
   useEffect(() => {
     if (shopData?.seo_script_text) {
@@ -111,28 +112,54 @@ const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <ShopProvider>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <SEOInjector /> {/* Add SEO injection here */}
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/items" element={<Events />} />
-                <Route path="/items/:id" element={<EventDetails />} />
-                <Route path="/products" element={<Products />} />
-                <Route
-                  path="/productdetails/:id"
-                  element={<ProductDetails />}
-                />
-                <Route path="/search/:query" element={<SearchResults />} />
-                <Route path="*" element={<Navigate to="/items" replace />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </AuthProvider>
+        <SEOProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <ShopSEOInjector /> {/* Keep existing shop-level SEO injection */}
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/events" element={<Events />} />
+                  <Route path="/event/:slug" element={<EventDetails />} />
+
+                  <Route path="/products" element={<Products />} />
+                  <Route path="/product/:slug" element={<ProductDetails />} />
+                  <Route path="/search/:query" element={<SearchResults />} />
+                  <Route path="*" element={<Navigate to="/items" replace />} />
+                  {/* <Route path="/blogs" element={<Blogs />} /> */}
+                  {/* <Route path="/blog/:slug" element={<BlogDetails />} /> */}
+                  {/* <Route path="/items" element={<Items />} /> */}
+                  {/* <Route path="/item/:slug" element={<ItemDetails />} /> */}
+                  {/* <Route path="/bookings" element={<Bookings />} /> */}
+                  {/* <Route path="/booking/:slug" element={<BookingDetails />} /> */}
+                  {/* <Route path="/properties" element={<Properties />} /> */}
+                  {/* <Route path="/property/:slug" element={<PropertyDetails />} /> */}
+                  {/* <Route path="/jobs" element={<Jobs />} /> */}
+                  {/* <Route path="/Job/:slug" element={<JobDetails />} /> */}
+                  {/* <Route path="/services" element={<Services />} /> */}
+                  {/* <Route path="/service/:slug" element={<ServiceDetails />} /> */}
+                  {/* <Route path="/profiles" element={<Profiles />} /> */}
+                  {/* <Route path="/profile/:slug" element={<ProfileDetails />} /> */}
+                  {/* <Route path="/books" element={<Books />} /> */}
+                  {/* <Route path="/book/:slug" element={<BookDetails />} /> */}
+                  {/* <Route path="/recipes" element={<Recipes />} /> */}
+                  {/* <Route path="/recipe/:slug" element={<RecipeDetails />} /> */}
+                  {/* <Route path="/localbusinesses" element={<LocalBusinesses />} /> */}
+                  {/* <Route path="/localbusiness/:slug" element={<LocalBusinessDetails />} /> */}
+                  {/* <Route path="/vacationrentals" element={<VacationRentals />} /> */}
+                  {/* <Route path="/vacationrental/:slug" element={<VacationRentalDetails />} /> */}
+                  {/* singular */}
+                  {/* <Route path="/faq/:slug" element={<FAQ />} /> */}
+                  {/* <Route path="/organizations" element={<Organizations />} /> */}
+                  {/* <Route path="/about/:slug" element={<About />} /> */}
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </AuthProvider>
+        </SEOProvider>
       </ShopProvider>
     </QueryClientProvider>
   </HelmetProvider>
