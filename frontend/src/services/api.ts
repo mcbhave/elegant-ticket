@@ -56,6 +56,7 @@ export interface EventDetails {
 
 export interface Event {
   id: number;
+  slug: string;
   shops_id: string;
   item_type: string;
   title: string;
@@ -278,7 +279,7 @@ interface SearchResponse {
   prevPage: number | null;
   offset: number;
   perPage: number;
-  items: Event[];
+  items: (Event | Product)[];
 }
 
 interface RelatedItem {
@@ -713,7 +714,8 @@ class ApiService {
       url.includes("/related_items") ||
       url.includes("/items_categories") ||
       url.includes("/customer_urls") ||
-      url.includes("/cart_items")
+      url.includes("/cart_items") ||
+      url.includes("/items_details")
     );
   }
 
@@ -854,6 +856,29 @@ class ApiService {
     });
   }
 
+  async getEventBySlug(slug: string): Promise<Event | null> {
+    try {
+      // Get events response (which may be an object with items property or direct array)
+      const response = await this.getEvents();
+
+      // Handle both response formats like in Events.tsx
+      const events = Array.isArray(response) ? response : response.items || [];
+
+      const eventWithSlug = events.find((event: Event) => event.slug === slug);
+
+      if (!eventWithSlug) {
+        console.log("No event found with slug:", slug);
+        return null;
+      }
+
+      // Then fetch full details using the existing getEventById method
+      return this.getEventById(eventWithSlug.id);
+    } catch (err) {
+      console.error("Failed to fetch event by slug", err);
+      return null;
+    }
+  }
+
   async getReviewsByItemId(
     itemId: number | string
   ): Promise<ReviewsResponse | null> {
@@ -971,6 +996,25 @@ class ApiService {
         return null;
       }
     });
+  }
+
+  //slug product
+  async getProductBySlug(slug: string): Promise<Product | null> {
+    try {
+      const res = await this.api.get(`/items_details/${slug}`);
+
+      let productData;
+      if (Array.isArray(res.data)) {
+        productData = res.data[0];
+      } else {
+        productData = res.data;
+      }
+
+      return productData || null;
+    } catch (err) {
+      console.error("Failed to fetch product by slug", err);
+      return null;
+    }
   }
 
   async getItemsCategories(shopId?: string): Promise<ItemCategory[]> {

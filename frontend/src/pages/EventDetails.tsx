@@ -22,17 +22,24 @@ import { EventCard } from "@/components/events/EventCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Event } from "@/types";
+import SimpleSquareMap from "@/components/events/SimpleSquareMap";
+import { useItemSEO } from "@/hooks/useItemSEO";
 import {
   apiService,
   RelatedItem,
   RelatedItemsResponse,
   ReviewData,
   ReviewsResponse,
+  Event,
 } from "@/services/api";
 
 const EventDetails = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
+  const { isLoading: seoLoading, error: seoError } = useItemSEO({
+    slug,
+    itemType: "event",
+    enabled: !!slug,
+  });
   const [event, setEvent] = useState<Event | null>(null);
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [reviewsData, setReviewsData] = useState<ReviewsResponse | null>(null);
@@ -40,12 +47,13 @@ const EventDetails = () => {
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
   const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
 
+  // add seo script
   useEffect(() => {
     const loadEventDetails = async () => {
       try {
-        if (id) {
+        if (slug) {
           // Fetch main event
-          const eventData = await apiService.getEventById(id);
+          const eventData = await apiService.getEventBySlug(slug);
           setEvent(eventData);
 
           if (eventData) {
@@ -79,7 +87,7 @@ const EventDetails = () => {
     };
 
     loadEventDetails();
-  }, [id]);
+  }, [slug]);
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString("en-US", {
@@ -143,7 +151,7 @@ const EventDetails = () => {
             The event you're looking for doesn't exist.
           </p>
           <Button asChild>
-            <Link to="/items">
+            <Link to="/events">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Events
             </Link>
@@ -160,8 +168,7 @@ const EventDetails = () => {
     : [];
   const eventImage =
     // @ts-ignore
-    event._item_images_of_items?.items?.[0]?.display_image ||
-    "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=1920&auto=format&fit=crop&q=80";
+    event._item_images_of_items?.items?.[0]?.display_image;
 
   return (
     <div className="min-h-screen bg-background">
@@ -462,6 +469,20 @@ const EventDetails = () => {
 
             {/* Right Column - Sidebar */}
             <div className="space-y-6">
+              {/* Location Map - ADD THIS NEW SECTION */}
+              {event._events_seo_of_items?.address && (
+                <SimpleSquareMap
+                  address={event._events_seo_of_items.address}
+                  coordinates={
+                    event._events_seo_of_items?.location?.data
+                      ? {
+                          lat: event._events_seo_of_items.location.data.lat,
+                          lng: event._events_seo_of_items.location.data.lng,
+                        }
+                      : undefined
+                  }
+                />
+              )}
               {/* Organizer Info */}
               {event._shops && (
                 <Card className="bg-gradient-card border-0 shadow-card">
@@ -581,6 +602,7 @@ const EventDetails = () => {
               </Card>
 
               {/* Purchase Ticket */}
+
               {event._events_seo_of_items?.price && (
                 <Card className="bg-gradient-hero text-white border-0 shadow-card">
                   <CardContent className="p-6 text-center">
@@ -653,7 +675,9 @@ const EventDetails = () => {
                       <Button variant="outline" size="sm" asChild>
                         <Link
                           to={`/${item.related_item_type.toLowerCase()}s/${
-                            item.related_items_id
+                            item.related_item_type.toLowerCase() === "event"
+                              ? item.slug
+                              : item.related_items_id
                           }`}
                           target={item.open_in_new_window ? "_blank" : "_self"}
                           rel={

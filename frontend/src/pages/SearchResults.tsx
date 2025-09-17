@@ -18,15 +18,16 @@ import { Input } from "@/components/ui/input";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { EventCard } from "@/components/events/EventCard";
+import { ProductCard } from "@/components/events/ProductCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Event } from "@/types";
-import { apiService, SearchResponse } from "@/services/api";
+
+import { apiService, SearchResponse, Event, Product } from "@/services/api";
 
 const SearchResults = () => {
   const { query: urlQuery } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<(Event | Product)[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(urlQuery || "");
   const [searchResponse, setSearchResponse] = useState<SearchResponse | null>(
@@ -88,7 +89,7 @@ const SearchResults = () => {
   };
 
   // Render event in list view
-  const renderEventListItem = (event: Event) => {
+  const renderEventListItem = (event: Event | Product) => {
     const eventImage =
       // @ts-ignore
       event._item_images_of_items?.items?.[0]?.display_image ||
@@ -101,7 +102,7 @@ const SearchResults = () => {
 
     return (
       <Card
-        key={event.id}
+        key={event.slug || event.id}
         className="bg-gradient-card border-0 shadow-card hover:shadow-lg transition-all duration-300"
       >
         <CardContent className="p-0">
@@ -123,7 +124,11 @@ const SearchResults = () => {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <Link
-                      to={`/events/${event.id}`}
+                      to={
+                        event.item_type === "Product"
+                          ? `/product/${event.slug || event.id}`
+                          : `/event/${(event as Event).slug}`
+                      }
                       className="hover:text-primary transition-colors"
                     >
                       <h3 className="text-xl font-bold mb-2 line-clamp-2">
@@ -149,10 +154,10 @@ const SearchResults = () => {
                   </div>
 
                   {/* Price */}
-                  {event._events_seo_of_items?.price && (
+                  {(event as Event)._events_seo_of_items?.price && (
                     <div className="text-right">
                       <div className="text-2xl font-bold text-primary">
-                        ₹{event._events_seo_of_items.price}
+                        ₹{(event as Event)._events_seo_of_items.price}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         per ticket
@@ -168,21 +173,23 @@ const SearchResults = () => {
 
                 {/* Event Meta */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                  {event._events_seo_of_items?.start_time && (
+                  {(event as Event)._events_seo_of_items?.start_time && (
                     <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                       <Calendar className="w-4 h-4 text-primary" />
                       <span>
-                        {formatDate(event._events_seo_of_items.start_time)}
+                        {formatDate(
+                          (event as Event)._events_seo_of_items.start_time
+                        )}
                       </span>
                     </div>
                   )}
 
-                  {event._events_seo_of_items?.start_time && (
+                  {(event as Event)._events_seo_of_items?.start_time && (
                     <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                       <Clock className="w-4 h-4 text-primary" />
                       <span>
                         {new Date(
-                          event._events_seo_of_items.start_time
+                          (event as Event)._events_seo_of_items.start_time
                         ).toLocaleTimeString("en-US", {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -191,11 +198,11 @@ const SearchResults = () => {
                     </div>
                   )}
 
-                  {event._events_seo_of_items?.address && (
+                  {(event as Event)._events_seo_of_items?.address && (
                     <div className="flex items-center space-x-2 text-sm text-muted-foreground sm:col-span-2">
                       <MapPin className="w-4 h-4 text-primary" />
                       <span className="line-clamp-1">
-                        {event._events_seo_of_items.address}
+                        {(event as Event)._events_seo_of_items.address}
                       </span>
                     </div>
                   )}
@@ -224,7 +231,15 @@ const SearchResults = () => {
                 {/* Action Button */}
                 <div className="mt-auto">
                   <Button asChild className="w-full sm:w-auto">
-                    <Link to={`/items/${event.id}`}>View Details</Link>
+                    <Link
+                      to={
+                        event.item_type === "Product"
+                          ? `/product/${event.slug || event.id}`
+                          : `/event/${(event as Event).slug}`
+                      }
+                    >
+                      View Details
+                    </Link>
                   </Button>
                 </div>
               </div>
@@ -244,9 +259,9 @@ const SearchResults = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center space-x-4 mb-6">
             <Button variant="ghost" asChild>
-              <Link to="/events">
+              <Link to="/">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Events
+                Back to Home
               </Link>
             </Button>
           </div>
@@ -260,7 +275,7 @@ const SearchResults = () => {
             </h1>
             {searchResponse && (
               <p className="text-xl text-muted-foreground">
-                Found {searchResponse.itemsReceived} event
+                Found {searchResponse.itemsReceived} result
                 {searchResponse.itemsReceived !== 1 ? "s" : ""}
                 {searchResponse.itemsReceived > 0 && (
                   <span> on page {searchResponse.curPage}</span>
@@ -275,7 +290,7 @@ const SearchResults = () => {
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
               <Input
                 type="search"
-                placeholder="Search events, venues, organizers..."
+                placeholder="Search events, products, venues, organizers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-12 pr-4 h-12 text-lg bg-muted/50 border-0 focus:bg-surface focus:ring-2 focus:ring-primary/20"
@@ -297,20 +312,26 @@ const SearchResults = () => {
           {isLoading ? (
             <div className="text-center py-16">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Searching events...</p>
+              <p className="text-muted-foreground">Searching...</p>
             </div>
           ) : events.length === 0 ? (
             <div className="text-center py-16">
               <Search className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h2 className="text-2xl font-bold mb-4">No events found</h2>
+              <h2 className="text-2xl font-bold mb-4">No results found</h2>
               <p className="text-muted-foreground mb-8 max-w-md mx-auto">
                 {urlQuery
-                  ? `We couldn't find any events matching "${urlQuery}". Try different keywords or browse all events.`
-                  : "Enter a search term to find events."}
+                  ? `We couldn't find any results matching "${urlQuery}". Try different keywords or browse all items.`
+                  : "Enter a search term to find items."}
               </p>
               <div className="space-x-4">
                 <Button asChild variant="outline">
-                  <Link to="/events">Browse All Events</Link>
+                  <Link to="/">Browse Home</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to="/events">Browse Events</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to="/products">Browse Products</Link>
                 </Button>
               </div>
             </div>
@@ -336,12 +357,22 @@ const SearchResults = () => {
                 </div>
               </div>
 
-              {/* Events Grid/List */}
+              {/* Items Grid/List */}
               {viewMode === "grid" ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {events.map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))}
+                  {events.map((event) =>
+                    event.item_type === "Product" ? (
+                      <ProductCard
+                        key={event.id || event.slug}
+                        product={event as Product}
+                      />
+                    ) : (
+                      <EventCard
+                        key={(event as Event).slug}
+                        event={event as Event}
+                      />
+                    )
+                  )}
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -370,7 +401,7 @@ const SearchResults = () => {
         </div>
       </section>
 
-      <Footer shopId={shopId || undefined} />
+      <Footer shopId={shopId} />
     </div>
   );
 };

@@ -3,26 +3,26 @@ import { useParams, Link } from "react-router-dom";
 
 import {
   ShoppingCart,
-  ArrowLeft,
-  ExternalLink,
+  MapPin,
+  Globe,
   Star,
+  User,
   Building,
   Tag,
+  ArrowLeft,
+  ExternalLink,
   Package,
   ArrowRight,
-  Globe,
-  User,
-  Calendar,
-  Shield,
-  Truck,
+  Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { ProductCard } from "@/components/events/ProductCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useItemSEO } from "@/hooks/useItemSEO";
+
 import {
   apiService,
   RelatedItem,
@@ -30,58 +30,71 @@ import {
   ReviewData,
   ReviewsResponse,
   Product,
-  ProductImage,
+  ActionButton,
 } from "@/services/api";
 
 const ProductDetails = () => {
-  const { shopId, id } = useParams();
+  const { slug } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [reviewsData, setReviewsData] = useState<ReviewsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<ProductImage | null>(null);
   const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
 
   useEffect(() => {
     const loadProductDetails = async () => {
+      if (!slug) return;
+
       try {
-        if (id) {
-          // Fetch main product
-          const productData = await apiService.getProductById(id);
-          setProduct(productData);
+        setIsLoading(true);
 
-          if (productData) {
-            // Set the first image as selected
-            const images = productData._item_images_of_items?.items || [];
-            if (images.length > 0) {
-              setSelectedImage(
-                images.find((img) => img.seq === 1) || images[0]
-              );
-            }
+        // Fetch main product first
+        const productData = await apiService.getProductBySlug(slug);
 
-            // Fetch reviews for this product
-            const reviewsResponse = await apiService.getReviewsByItemId(
-              productData.id
+        if (!productData) {
+          setIsLoading(false);
+          return;
+        }
+
+        setProduct(productData);
+
+        // Now fetch reviews and related items using the product ID
+        const productId = productData.id;
+
+        // Fetch reviews for this product
+        try {
+          const reviewsResponse = await apiService.getReviewsByItemId(
+            productId
+          );
+          if (reviewsResponse) {
+            setReviewsData(reviewsResponse);
+            setReviews(
+              reviewsResponse.items.filter((review) => review.Is_visible)
             );
-            if (reviewsResponse) {
-              setReviewsData(reviewsResponse);
-              setReviews(
-                reviewsResponse.items.filter((review) => review.Is_visible)
-              );
-            }
-
-            // Fetch related items for this event
-            const relatedItemsResponse = await apiService.getRelatedItems(
-              productData.id
-            );
-            if (relatedItemsResponse) {
-              setRelatedItems(
-                relatedItemsResponse.items.filter((item) => item.is_visible)
-              );
-            }
           }
+        } catch (reviewError) {
+          console.warn("No reviews found for this product:", reviewError);
+          setReviews([]);
+          setReviewsData(null);
+        }
+
+        // Fetch related items for this product
+        try {
+          const relatedItemsResponse = await apiService.getRelatedItems(
+            productId
+          );
+          if (relatedItemsResponse) {
+            setRelatedItems(
+              relatedItemsResponse.items.filter((item) => item.is_visible)
+            );
+          }
+        } catch (relatedError) {
+          console.warn(
+            "No related items found for this product:",
+            relatedError
+          );
+          setRelatedItems([]);
         }
       } catch (error) {
         console.error("Failed to load product details:", error);
@@ -91,15 +104,7 @@ const ProductDetails = () => {
     };
 
     loadProductDetails();
-  }, [id]);
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
+  }, [slug]);
 
   const formatReviewDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString("en-US", {
@@ -121,6 +126,40 @@ const ProductDetails = () => {
       return reviewsData.ratings_avg[0].Total_items;
     }
     return 0;
+  };
+
+  const handleActionButtonClick = async (button: ActionButton) => {
+    try {
+      const isAuthenticated = apiService.isAuthenticated();
+
+      if (!isAuthenticated) {
+        const shouldLogin = confirm(
+          "Please log in to add items to your cart. Would you like to log in now?"
+        );
+        if (shouldLogin) {
+          window.location.href = "/auth";
+        }
+        return;
+      }
+
+      await apiService.addToCart(product!.id, button.id, product!.shops_id, 0);
+
+      console.log("Item added to cart successfully");
+
+      if (button.sharable_link && button.sharable_link !== "null") {
+        if (button.open_in_new_window) {
+          window.open(button.sharable_link, "_blank", "noopener,noreferrer");
+        } else {
+          window.location.href = button.sharable_link;
+        }
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to add item to cart. Please try again.";
+      alert(errorMessage);
+    }
   };
 
   if (isLoading) {
@@ -159,31 +198,29 @@ const ProductDetails = () => {
     );
   }
 
-  // Process product tags
+  // Parse tags - products have tags property with null checks
   const productTags = product.tags
-    ? product.tags.split(",").map((tag) => tag.trim())
-    : [];
-
-  const seoTags = product.SEO_Tags
-    ? product.SEO_Tags.split(",")
+    ? product.tags
+        .split(",")
         .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0)
+        .filter((tag) => tag)
     : [];
 
-  const images = product._item_images_of_items?.items || [];
+  // Get product image with null checks
+  const productImages = product._item_images_of_items?.items || [];
   const primaryImage =
-    selectedImage || images.find((img) => img.seq === 1) || images[0];
+    productImages.find((img) => img.seq === 1) || productImages[0];
+  const productImage = primaryImage?.display_image;
 
-  const getImageUrl = (imageUrl?: string) => {
-    if (!imageUrl) return "/placeholder.svg";
-    return imageUrl.startsWith("//") ? `https:${imageUrl}` : imageUrl;
-  };
+  // Get action buttons with null checks
+  const actionButtons: ActionButton[] = (product._action_buttons_of_items || [])
+    .filter((button: ActionButton) => button.Is_visible)
+    .sort((a: ActionButton, b: ActionButton) => a.seq - b.seq);
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Back Button */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <Button variant="ghost" asChild className="mb-4">
           <Link to="/products">
@@ -193,179 +230,206 @@ const ProductDetails = () => {
         </Button>
       </div>
 
-      {/* Main Content */}
-      <section className="py-8">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
-            {/* Left Column - Product Images */}
-            <div className="space-y-4">
-              {/* Main Image - Changed from aspect-square to fixed height */}
-              <div className="relative h-[60vh] overflow-hidden rounded-lg bg-white">
-                <img
-                  src={getImageUrl(primaryImage?.display_image)}
-                  alt={product.title}
-                  className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                />
-              </div>
+      {/* Hero Section */}
+      <section className="relative h-[60vh] flex items-end overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${productImage})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
 
-              {/* Thumbnail Images */}
-              {images.length > 1 && (
-                <div className="grid grid-cols-4 gap-2">
-                  {images.map((image) => (
-                    <button
-                      key={image.id}
-                      onClick={() => setSelectedImage(image)}
-                      className={`relative aspect-square overflow-hidden rounded-lg border-2 transition-all ${
-                        selectedImage?.id === image.id
-                          ? "border-primary ring-2 ring-primary/20"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <img
-                        src={getImageUrl(image.display_image)}
-                        alt={`${product.title} - Image ${image.seq}`}
-                        className="w-full h-full object-contain bg-white"
-                      />
-                    </button>
-                  ))}
+        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 pb-12 text-white">
+          <div className="max-w-4xl">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 tracking-tight">
+              {product.title}
+            </h1>
+
+            <p className="text-xl md:text-2xl mb-6 text-white/90 leading-relaxed">
+              {(product.description || "").length > 150
+                ? product.description.substring(0, 150) + "..."
+                : product.description}
+            </p>
+
+            <div className="flex flex-wrap gap-6 mb-6">
+              <div className="flex items-center space-x-2">
+                <Package className="w-5 h-5 text-primary" />
+                <span>Product</span>
+              </div>
+              {product.item_type && (
+                <div className="flex items-center space-x-2">
+                  <Tag className="w-5 h-5 text-primary" />
+                  <span>{product.item_type}</span>
                 </div>
               )}
             </div>
 
-            {/* Right Column - Product Info */}
-            <div className="space-y-6">
-              {/* Title and Status */}
-              <div>
-                <div className="flex items-start justify-between mb-2">
-                  <h1 className="text-3xl font-bold text-foreground">
-                    {product.title}
-                  </h1>
-                </div>
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              {actionButtons.map((button) => (
+                <Button
+                  key={button.id}
+                  size="lg"
+                  className="btn-glow"
+                  style={{
+                    backgroundColor: button.background_color,
+                    color: button.font_color,
+                  }}
+                  onClick={() => handleActionButtonClick(button)}
+                >
+                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  {button.name}
+                </Button>
+              ))}
+              {actionButtons.length === 0 && (
+                <Button
+                  size="lg"
+                  className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  Add to Cart
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
-                {/* Product Type */}
-                <Badge className="bg-primary/10 text-primary mb-4">
-                  {product.item_type}
-                </Badge>
-
-                {/* Ratings */}
-                {reviews.length > 0 && (
-                  <div className="flex items-center space-x-2 mb-4">
-                    <div className="flex items-center">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-5 h-5 ${
-                            i < Math.floor(getAverageRating())
-                              ? "text-yellow-400 fill-current"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <span className="font-semibold">
-                      {getAverageRating() > 0
-                        ? getAverageRating().toFixed(1)
-                        : "N/A"}
-                    </span>
-                    <span className="text-muted-foreground">
-                      ({getTotalReviews()} reviews)
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Description */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Description</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {product.description}
-                </p>
-              </div>
-
-              {/* Product Details */}
+      {/* Main Content */}
+      <section className="py-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            {/* Left Column - Product Details */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Product Information */}
               <Card className="bg-gradient-card border-0 shadow-card">
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">
-                    Product Details
-                  </h3>
-                  <div className="space-y-3">
-                    {/* <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Product ID</span>
-                      <span className="font-medium">#{product.id}</span>
-                    </div> */}
-                    {/* <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Added Date</span>
-                      <span className="font-medium">
-                        {formatDate(product.created_at)}
-                      </span>
-                    </div> */}
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Category</span>
-                      <span className="font-medium">{product.item_type}</span>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Package className="w-6 h-6 text-primary" />
+                    <span>Product Information</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-semibold mb-2">Product Type</h4>
+                      <p className="text-muted-foreground">
+                        {product.item_type}
+                      </p>
                     </div>
-                    {productTags.length > 0 && (
-                      <div className="space-y-2">
-                        <span className="text-muted-foreground">Tags</span>
-                        <div className="flex flex-wrap gap-2">
-                          {productTags.map((tag, index) => (
-                            <Badge
-                              key={index}
-                              variant="secondary"
-                              className="bg-green-50 text-green-700 border-green-200"
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
+
+                    <div>
+                      <h4 className="font-semibold mb-2">Status</h4>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          product.Is_disabled
+                            ? "bg-red-100 text-red-800"
+                            : "bg-green-100 text-green-800"
+                        }
+                      >
+                        {product.Is_disabled ? "Disabled" : "Available"}
+                      </Badge>
+                    </div>
+
+                    {product.created_at && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Added On</h4>
+                        <p className="text-muted-foreground">
+                          {new Date(product.created_at).toLocaleDateString(
+                            "en-US",
+                            {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            }
+                          )}
+                        </p>
+                      </div>
+                    )}
+
+                    {product.SEO_Tags && (
+                      <div>
+                        <h4 className="font-semibold mb-2">SEO Tags</h4>
+                        <p className="text-muted-foreground text-sm">
+                          {product.SEO_Tags.split(",").slice(0, 5).join(", ")}
+                        </p>
                       </div>
                     )}
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Action Buttons */}
-              <div className="space-y-3">
-                {product._shops?.custom_domain && (
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="w-full"
-                    asChild
-                  >
-                    <a
-                      href={`https://${product._shops.custom_domain}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="w-5 h-5 mr-2" />
-                      Visit Shop Website
-                    </a>
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
+              {/* About This Product Card */}
+              <Card className="bg-gradient-card border-0 shadow-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Globe className="w-6 h-6 text-primary" />
+                    <span>About This Product</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h3 className="text-2xl font-bold mb-4 text-foreground">
+                      {product.title}
+                    </h3>
+                    <div className="prose prose-gray max-w-none">
+                      <p className="text-muted-foreground leading-relaxed text-base">
+                        {product.description}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          {/* Additional Details Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column - Tags and Additional Info */}
-            <div className="lg:col-span-2 space-y-8">
-              {/* SEO Tags (if different from product tags) */}
-              {/* {seoTags.length > 0 && (
+              {/* Product Images */}
+              {productImages.length > 1 && (
+                <Card className="bg-gradient-card border-0 shadow-card">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Package className="w-6 h-6 text-primary" />
+                      <span>Product Gallery</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {productImages.map((image, index) => (
+                        <div
+                          key={image.id}
+                          className="aspect-square relative overflow-hidden rounded-lg"
+                        >
+                          <img
+                            src={image.display_image}
+                            alt={`Product image ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src =
+                                "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&auto=format&fit=crop&q=80";
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Tags */}
+
+              {productTags.length > 0 && (
                 <Card className="bg-gradient-card border-0 shadow-card">
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <Tag className="w-6 h-6 text-primary" />
-                      <span>SEO Tags</span>
+                      <span>Tags</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-2">
-                      {seoTags.map((tag, index) => (
+                      {productTags.map((tag, index) => (
                         <Badge
                           key={index}
-                          variant="outline"
-                          className="bg-blue-50 text-blue-700 border-blue-200"
+                          variant="secondary"
+                          className="bg-primary/10 text-primary hover:bg-primary/20"
                         >
                           {tag}
                         </Badge>
@@ -373,7 +437,7 @@ const ProductDetails = () => {
                     </div>
                   </CardContent>
                 </Card>
-              )} */}
+              )}
 
               {/* Reviews */}
               {reviews.length > 0 && (
@@ -382,7 +446,7 @@ const ProductDetails = () => {
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <Star className="w-6 h-6 text-primary" />
-                        <span>Customer Reviews</span>
+                        <span>Reviews & Ratings</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Star className="w-5 h-5 text-yellow-400 fill-current" />
@@ -419,7 +483,7 @@ const ProductDetails = () => {
                               <div className="flex-1">
                                 <div className="flex items-center space-x-2 mb-1">
                                   <h4 className="font-semibold">
-                                    {review.user_info?.name || "Anonymous User"}
+                                    {review.user_info?.name}
                                   </h4>
                                   <div className="flex items-center">
                                     {Array.from({ length: 5 }).map((_, i) => (
@@ -473,13 +537,14 @@ const ProductDetails = () => {
 
             {/* Right Column - Sidebar */}
             <div className="space-y-6">
-              {/* Shop Info */}
+              {/* Shop/Seller Info */}
+
               {product._shops && (
                 <Card className="bg-gradient-card border-0 shadow-card">
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <Building className="w-6 h-6 text-primary" />
-                      <span>Shop</span>
+                      <span>Seller</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -491,7 +556,8 @@ const ProductDetails = () => {
                           className="w-full h-full object-contain"
                           onError={(e) => {
                             e.currentTarget.style.display = "none";
-                            e.currentTarget.nextElementSibling!.style.display =
+                            // @ts-ignore
+                            e.currentTarget.nextElementSibling.style.display =
                               "flex";
                           }}
                         />
@@ -503,9 +569,7 @@ const ProductDetails = () => {
                         <h3 className="font-bold text-lg">
                           {product._shops.name}
                         </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Shop Owner
-                        </p>
+                        <p className="text-sm text-muted-foreground">Seller</p>
                       </div>
                     </div>
                     <p className="text-muted-foreground mb-4">
@@ -520,22 +584,92 @@ const ProductDetails = () => {
                         className="w-full"
                       >
                         <a
-                          href={`https://${product._shops.custom_domain}`}
+                          href={product._shops.custom_domain}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
                           <Globe className="w-4 h-4 mr-2" />
-                          Visit Shop
+                          Visit Store
                         </a>
                       </Button>
                     )}
                   </CardContent>
                 </Card>
               )}
+
+              {/* Product Stats */}
+              <Card className="bg-gradient-card border-0 shadow-card">
+                <CardHeader>
+                  <CardTitle>Product Stats</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Status</span>
+                    <Badge
+                      variant="secondary"
+                      className={
+                        product.Is_disabled
+                          ? "bg-red-100 text-red-800"
+                          : "bg-green-100 text-green-800"
+                      }
+                    >
+                      {product.Is_disabled ? "Disabled" : "Available"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Type</span>
+                    <span className="font-semibold">{product.item_type}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Reviews</span>
+                    <span className="font-semibold">{getTotalReviews()}</span>
+                  </div>
+                  {product.created_at && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Added</span>
+                      <span className="font-semibold">
+                        {new Date(product.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Action Buttons Card */}
+              <Card className="bg-gradient-hero text-white border-0 shadow-card">
+                <CardContent className="p-6 text-center space-y-4">
+                  {actionButtons.map((button) => (
+                    <Button
+                      key={button.id}
+                      size="lg"
+                      className="w-full btn-glow"
+                      style={{
+                        backgroundColor: button.background_color,
+                        color: button.font_color,
+                      }}
+                      onClick={() => handleActionButtonClick(button)}
+                    >
+                      <ShoppingCart className="w-5 h-5 mr-2" />
+                      {button.name}
+                    </Button>
+                  ))}
+
+                  {actionButtons.length === 0 && (
+                    <Button
+                      size="lg"
+                      className="w-full btn-glow bg-white text-foreground hover:bg-white/90"
+                    >
+                      <ShoppingCart className="w-5 h-5 mr-2" />
+                      Add to Cart
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
       </section>
+
       {/* Related Items */}
       {relatedItems.length > 0 && (
         <section className="py-16 bg-background">
@@ -543,7 +677,7 @@ const ProductDetails = () => {
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold mb-4">Related Items</h2>
               <p className="text-xl text-muted-foreground">
-                Items related to this event
+                Items related to this product
               </p>
             </div>
 
@@ -555,16 +689,9 @@ const ProductDetails = () => {
                 >
                   <div className="aspect-video relative overflow-hidden rounded-t-lg">
                     <img
-                      src={
-                        item.display_image ||
-                        "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&auto=format&fit=crop&q=80"
-                      }
+                      src={item.display_image}
                       alt={item.title}
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src =
-                          "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&auto=format&fit=crop&q=80";
-                      }}
                     />
                     {item.related_item_type && (
                       <Badge className="absolute top-3 left-3 bg-primary/90 text-white">
@@ -586,7 +713,9 @@ const ProductDetails = () => {
                       <Button variant="outline" size="sm" asChild>
                         <Link
                           to={`/${item.related_item_type.toLowerCase()}s/${
-                            item.related_items_id
+                            item.related_item_type.toLowerCase() === "product"
+                              ? item.slug || item.related_items_id
+                              : item.related_items_id
                           }`}
                           target={item.open_in_new_window ? "_blank" : "_self"}
                           rel={
@@ -616,6 +745,7 @@ const ProductDetails = () => {
           </div>
         </section>
       )}
+
       <Footer />
     </div>
   );

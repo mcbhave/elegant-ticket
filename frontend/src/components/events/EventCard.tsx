@@ -148,7 +148,7 @@ export const EventCard: React.FC<EventCardProps> = ({
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
           <div className="flex gap-2">
             <Button size="sm" asChild className="btn-glow">
-              <Link to={`/items/${event.id}`}>View Details</Link>
+              <Link to={`/event/${event.slug}`}>View Details</Link>
             </Button>
             {eventDetails?.url && (
               <Button size="sm" variant="secondary" asChild>
@@ -168,7 +168,7 @@ export const EventCard: React.FC<EventCardProps> = ({
       <CardContent className="p-6">
         {/* Title */}
         <h3 className="font-semibold text-lg mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-          <Link to={`/items/${event.id}`} className="hover:underline">
+          <Link to={`/event/${event.slug}`} className="hover:underline">
             {event.title}
           </Link>
         </h3>
