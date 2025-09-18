@@ -6,59 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { ProductCard } from "@/components/events/ProductCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { apiService } from "@/services/api";
-
-interface Product {
-  id: number;
-  shops_id: string;
-  item_type: string;
-  Is_disabled: boolean;
-  created_at: number;
-  title: string;
-  description: string;
-  SEO_Tags?: string;
-  tags?: string;
-  _item_images_of_items?: {
-    items?: ProductImage[];
-    itemsReceived?: number;
-    curPage?: number;
-    nextPage?: number | null;
-    prevPage?: number | null;
-    offset?: number | null;
-    perPage?: number | null;
-  };
-  _shops?: {
-    id: string;
-    created_at?: number;
-    name: string;
-    description: string;
-    logo: string;
-    custom_domain: string;
-    Is_visible: boolean;
-    slug: string;
-  };
-  _users?: {
-    id: number;
-    created_at?: number;
-    name: string;
-    email: string;
-    role: string;
-    api_key?: string;
-    shops_id?: string;
-  };
-  _action_buttons?: any[];
-}
-
-type ProductImage = {
-  id: number;
-  shops_id?: string;
-  items_id?: number;
-  created_at?: number;
-  display_image?: string;
-  seq: number;
-  image_type: string;
-  Is_disabled: boolean;
-};
+import { apiService, Product } from "@/services/api";
 
 interface Shop {
   id: string;
@@ -67,14 +15,7 @@ interface Shop {
 
 interface ApiResponse {
   items?: Product[];
-  itemsReceived?: number;
-  curPage?: number;
-  nextPage?: number | null;
-  prevPage?: number | null;
-  offset?: number;
-  perPage?: number;
-  itemsTotal?: number;
-  pageTotal?: number;
+  [key: string]: any;
 }
 
 const Products = () => {
@@ -84,58 +25,34 @@ const Products = () => {
   const [shops, setShops] = useState<Shop[]>([]);
   const [selectedShop, setSelectedShop] = useState<string>("");
 
-  // Load all products and unique shops from API
+  // Load all products and unique shops
   useEffect(() => {
     const loadProductsAndShops = async () => {
       try {
         setError("");
-        setIsLoading(true);
+        const response: ApiResponse | Product[] =
+          await apiService.getProducts();
 
-        console.log("Fetching products from API...");
-        const response = await apiService.getProducts();
+        // Handle both response formats - with items array or direct array
+        const products = Array.isArray(response)
+          ? response
+          : response.items || [];
 
-        console.log("API Response:", response);
-
-        // Handle response - check if it's direct array or object with items
-        let products: Product[] = [];
-
-        if (Array.isArray(response)) {
-          products = response;
-        } else if (
-          response &&
-          typeof response === "object" &&
-          "items" in response
-        ) {
-          products = (response as ApiResponse).items || [];
-        } else {
-          console.error("Unexpected API response format:", response);
-          throw new Error("Invalid API response format");
-        }
-
-        console.log("Processed products:", products);
         setFeaturedProducts(products.slice(0, 100));
 
         // Extract unique shops from products
         const uniqueShops: Shop[] = Array.from(
           new Map(
             products
-              .filter((p) => p.shops_id && p._shops?.name)
-              .map((p) => [
-                p.shops_id,
-                { id: p.shops_id, name: p._shops!.name },
-              ])
+              .filter((p) => p.shops_id && p._shops?.name) // Filter out products without shop data
+              .map((p) => [p.shops_id, { id: p.shops_id, name: p._shops.name }])
           ).values()
         );
 
-        console.log("Extracted shops:", uniqueShops);
         setShops(uniqueShops);
       } catch (error) {
-        console.error("Failed to load products from API:", error);
-        setError(
-          `Failed to load products: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`
-        );
+        console.error("Failed to load featured products:", error);
+        setError("Failed to load products. Please try refreshing the page.");
       } finally {
         setIsLoading(false);
       }
@@ -144,41 +61,27 @@ const Products = () => {
     loadProductsAndShops();
   }, []);
 
-  // Fetch products by selected shop from API
+  // Fetch products by selected shop
   const handleShopChange = async (shopId: string) => {
     setSelectedShop(shopId);
     setIsLoading(true);
     setError("");
 
     try {
-      console.log("Filtering products by shop:", shopId);
-
       const filters = shopId ? { shopId } : {};
-      const response = await apiService.getProducts(filters);
+      const response: ApiResponse | Product[] = await apiService.getProducts(
+        filters
+      );
 
-      console.log("Filtered API Response:", response);
-
-      // Handle response format
-      let products: Product[] = [];
-
-      if (Array.isArray(response)) {
-        products = response;
-      } else if (
-        response &&
-        typeof response === "object" &&
-        "items" in response
-      ) {
-        products = (response as ApiResponse).items || [];
-      }
+      // Handle both response formats
+      const products = Array.isArray(response)
+        ? response
+        : response.items || [];
 
       setFeaturedProducts(products.slice(0, 100));
     } catch (error) {
       console.error("Failed to filter products:", error);
-      setError(
-        `Failed to filter products: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      setError("Failed to filter products. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +97,7 @@ const Products = () => {
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold mb-4">Featured Products</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Discover the best products from our trusted merchants
+              Discover the best products available right now
             </p>
           </div>
 
@@ -227,7 +130,7 @@ const Products = () => {
           {/* Loading State */}
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {Array.from({ length: 6 }).map((_, index) => (
+              {Array.from({ length: 100 }).map((_, index) => (
                 <Card key={index} className="animate-pulse">
                   <div className="h-48 bg-muted rounded-t-lg"></div>
                   <CardContent className="p-6">
@@ -242,7 +145,7 @@ const Products = () => {
               ))}
             </div>
           ) : featuredProducts.length > 0 ? (
-            /* Products Grid - Using ProductCard */
+            /* Products Grid */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
               {featuredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
@@ -260,7 +163,7 @@ const Products = () => {
               <p className="text-muted-foreground mb-6">
                 {selectedShop
                   ? "Try selecting a different shop or view all products"
-                  : "Check back later for new products"}
+                  : "Check back later for exciting new products"}
               </p>
               {selectedShop && (
                 <Button

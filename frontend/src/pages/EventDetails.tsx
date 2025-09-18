@@ -22,73 +22,38 @@ import { EventCard } from "@/components/events/EventCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Event } from "@/types";
-import { apiService } from "@/services/api";
-// import { MenuItem } from "@/types";
-
-// Review interface for API data
-interface ReviewData {
-  id: string;
-  created_at: number;
-  items_id: number;
-  shops_id: string;
-  Comments: string;
-  Helpful_count: number;
-  Is_visible: boolean;
-  Rating: number;
-  Title: string;
-  item_images_id: number[];
-  users_id: number;
-  user_info?: {
-    id: number;
-    name: string;
-  };
-}
-
-interface ReviewsResponse {
-  itemsReceived: number;
-  curPage: number;
-  nextPage: number | null;
-  prevPage: number | null;
-  offset: number;
-  perPage: number;
-  itemsTotal: number;
-  pageTotal: number;
-  items: ReviewData[];
-  ratings_avg: {
-    reviews_Rating1: number;
-    Total_items: number;
-  }[];
-}
+import SimpleSquareMap from "@/components/events/SimpleSquareMap";
+import { useItemSEO } from "@/hooks/useItemSEO";
+import {
+  apiService,
+  RelatedItem,
+  RelatedItemsResponse,
+  ReviewData,
+  ReviewsResponse,
+  Event,
+} from "@/services/api";
 
 const EventDetails = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
+  const { isLoading: seoLoading, error: seoError } = useItemSEO({
+    slug,
+    itemType: "event",
+    enabled: !!slug,
+  });
   const [event, setEvent] = useState<Event | null>(null);
-  const [relatedEvents, setRelatedEvents] = useState<Event[]>([]);
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [reviewsData, setReviewsData] = useState<ReviewsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
-  // const [menus, setMenus] = useState<MenuItem[]>([]);
+  const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
 
-  // useEffect(() => {
-  //   const loadMenus = async () => {
-  //     try {
-  //       const data = await apiService.getMenus(); // adjust to your API method
-  //       setMenus(data);
-  //     } catch (error) {
-  //       console.error("Failed to load menus:", error);
-  //     }
-  //   };
-
-  //   loadMenus();
-  // }, []);
+  // add seo script
   useEffect(() => {
     const loadEventDetails = async () => {
       try {
-        if (id) {
+        if (slug) {
           // Fetch main event
-          const eventData = await apiService.getEventById(id);
+          const eventData = await apiService.getEventBySlug(slug);
           setEvent(eventData);
 
           if (eventData) {
@@ -103,15 +68,15 @@ const EventDetails = () => {
               );
             }
 
-            // Fetch related events (same shop)
-            const allEvents = await apiService.getEvents();
-            const related = allEvents
-              .filter(
-                (e) =>
-                  e.id !== eventData.id && e._shops?.id === eventData._shops?.id
-              )
-              .slice(0, 3);
-            setRelatedEvents(related);
+            // Fetch related items for this event
+            const relatedItemsResponse = await apiService.getRelatedItems(
+              eventData.id
+            );
+            if (relatedItemsResponse) {
+              setRelatedItems(
+                relatedItemsResponse.items.filter((item) => item.is_visible)
+              );
+            }
           }
         }
       } catch (error) {
@@ -122,7 +87,7 @@ const EventDetails = () => {
     };
 
     loadEventDetails();
-  }, [id]);
+  }, [slug]);
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString("en-US", {
@@ -186,7 +151,7 @@ const EventDetails = () => {
             The event you're looking for doesn't exist.
           </p>
           <Button asChild>
-            <Link to="/items">
+            <Link to="/events">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Events
             </Link>
@@ -196,7 +161,6 @@ const EventDetails = () => {
     );
   }
 
-  // Use tags instead of SEO_Tags
   // @ts-ignore
   const eventTags = event.tags
     ? // @ts-ignore
@@ -204,31 +168,12 @@ const EventDetails = () => {
     : [];
   const eventImage =
     // @ts-ignore
-    event._item_images_of_items?.items?.[0]?.display_image ||
-    "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=1920&auto=format&fit=crop&q=80";
+    event._item_images_of_items?.items?.[0]?.display_image;
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      {/* Menus
-      <div className="bg-background border-b">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex gap-6">
-          {menus
-            .filter((menu) => menu.is_visible)
-            .sort((a, b) => a.seq - b.seq)
-            .map((menu) => (
-              <Link
-                key={menu.id}
-                to={menu.custom_url}
-                target={menu.Open_new_window ? "_blank" : "_self"}
-                className="text-sm font-medium text-foreground hover:text-primary transition-colors"
-              >
-                {menu.display_name}
-              </Link>
-            ))}
-        </div>
-      </div> */}
-      {/* Back Button */}
+
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <Button variant="ghost" asChild className="mb-4">
           <Link to="/events">
@@ -251,14 +196,13 @@ const EventDetails = () => {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 tracking-tight">
               {event.title}
             </h1>
-            {/* Show only first line/sentence of description */}
+
             <p className="text-xl md:text-2xl mb-6 text-white/90 leading-relaxed overflow-hidden">
               {event.description.length > 100
                 ? event.description.substring(0, 100) + "..."
                 : event.description.split(".")[0] + "."}
             </p>
 
-            {/* Quick Info */}
             <div className="flex flex-wrap gap-6 mb-6">
               {event._events_seo_of_items?.start_time && (
                 <div className="flex items-center space-x-2">
@@ -427,7 +371,7 @@ const EventDetails = () => {
                 </Card>
               )}
 
-              {/* Reviews - Updated with API data */}
+              {/* Reviews  */}
               {reviews.length > 0 && (
                 <Card className="bg-gradient-card border-0 shadow-card">
                   <CardHeader>
@@ -525,6 +469,20 @@ const EventDetails = () => {
 
             {/* Right Column - Sidebar */}
             <div className="space-y-6">
+              {/* Location Map - ADD THIS NEW SECTION */}
+              {event._events_seo_of_items?.address && (
+                <SimpleSquareMap
+                  address={event._events_seo_of_items.address}
+                  coordinates={
+                    event._events_seo_of_items?.location?.data
+                      ? {
+                          lat: event._events_seo_of_items.location.data.lat,
+                          lng: event._events_seo_of_items.location.data.lng,
+                        }
+                      : undefined
+                  }
+                />
+              )}
               {/* Organizer Info */}
               {event._shops && (
                 <Card className="bg-gradient-card border-0 shadow-card">
@@ -644,6 +602,7 @@ const EventDetails = () => {
               </Card>
 
               {/* Purchase Ticket */}
+
               {event._events_seo_of_items?.price && (
                 <Card className="bg-gradient-hero text-white border-0 shadow-card">
                   <CardContent className="p-6 text-center">
@@ -666,31 +625,85 @@ const EventDetails = () => {
         </div>
       </section>
 
-      {/* Related Events */}
-      {relatedEvents.length > 0 && (
-        <section className="py-16 bg-muted/30">
+      {/* Related Items */}
+      {relatedItems.length > 0 && (
+        <section className="py-16 bg-background">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold mb-4">Related Events</h2>
+              <h2 className="text-4xl font-bold mb-4">Related Items</h2>
               <p className="text-xl text-muted-foreground">
-                More events from {event._shops?.name}
+                Items related to this event
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {relatedEvents.map((relatedEvent) => (
-                <EventCard key={relatedEvent.id} event={relatedEvent} />
+              {relatedItems.map((item) => (
+                <Card
+                  key={item.id}
+                  className="bg-gradient-card border-0 shadow-card hover:shadow-lg transition-shadow"
+                >
+                  <div className="aspect-video relative overflow-hidden rounded-t-lg">
+                    <img
+                      src={
+                        item.display_image ||
+                        "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&auto=format&fit=crop&q=80"
+                      }
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src =
+                          "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&auto=format&fit=crop&q=80";
+                      }}
+                    />
+                    {item.related_item_type && (
+                      <Badge className="absolute top-3 left-3 bg-primary/90 text-white">
+                        {item.related_item_type}
+                      </Badge>
+                    )}
+                  </div>
+                  <CardContent className="p-6">
+                    <h3 className="font-bold text-lg mb-2 line-clamp-2">
+                      {item.title}
+                    </h3>
+                    <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
+                      {item.description}
+                    </p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(item.created_at).toLocaleDateString()}
+                      </span>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link
+                          to={`/${item.related_item_type.toLowerCase()}s/${
+                            item.related_item_type.toLowerCase() === "event"
+                              ? item.slug
+                              : item.related_items_id
+                          }`}
+                          target={item.open_in_new_window ? "_blank" : "_self"}
+                          rel={
+                            item.open_in_new_window
+                              ? "noopener noreferrer"
+                              : undefined
+                          }
+                        >
+                          View Details
+                          <ArrowRight className="ml-2 w-4 h-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
 
-            <div className="text-center mt-8">
-              <Button variant="outline" asChild>
-                <Link to="/events">
-                  View All Events
+            {relatedItems.length > 6 && (
+              <div className="text-center mt-8">
+                <Button variant="outline">
+                  View All Related Items
                   <ArrowRight className="ml-2 w-4 h-4" />
-                </Link>
-              </Button>
-            </div>
+                </Button>
+              </div>
+            )}
           </div>
         </section>
       )}

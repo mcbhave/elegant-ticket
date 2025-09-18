@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { User, AuthCredentials, SignupData } from "@/types";
+import { useAuth as useClerkAuth, useUser } from "@clerk/clerk-react";
+import { User, AuthCredentials, SignupData } from "@/services/api";
 import { apiService } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -11,6 +12,9 @@ interface AuthContextType {
   signup: (userData: SignupData) => Promise<boolean>;
   logout: () => void;
   refreshUser: () => void;
+  // Additional Clerk-specific properties
+  clerkUser: any;
+  isSignedIn: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,92 +32,123 @@ export const useAuthProvider = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Check for existing auth on mount
-    const checkAuth = () => {
-      try {
-        const currentUser = apiService.getCurrentUser();
-        if (currentUser && apiService.isAuthenticated()) {
-          setUser(currentUser);
-        }
-      } catch (error) {
-        console.error("Auth check failed:", error);
-      } finally {
-        setIsLoading(false);
-      }
+  // Clerk hooks
+  const { isSignedIn, isLoaded, signOut } = useClerkAuth();
+  const { user: clerkUser, isLoaded: userLoaded } = useUser();
+
+  // Convert Clerk user to your User interface format
+  const convertClerkUser = (clerkUser: any): User | null => {
+    if (!clerkUser) return null;
+
+    return {
+      id: clerkUser.id,
+      email: clerkUser.emailAddresses[0]?.emailAddress || "",
+      name: clerkUser.fullName || clerkUser.firstName || "",
+      avatar: clerkUser.imageUrl,
+      created_at: clerkUser.createdAt?.toISOString() || "",
+      auth_token: undefined, // Clerk handles tokens internally
     };
+  };
 
-    checkAuth();
-  }, []);
-
-  const login = async (credentials: AuthCredentials): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const user = await apiService.login(credentials);
-      setUser(user);
-      toast({
-        title: "Welcome back!",
-        description: `Hello ${user.name}, you're successfully logged in.`,
-      });
-      return true;
-    } catch (error) {
-      const message = apiService.handleApiError(error);
-      toast({
-        title: "Login Failed",
-        description: message,
-        variant: "destructive",
-      });
-      return false;
-    } finally {
+  useEffect(() => {
+    // Check auth state when Clerk is loaded
+    if (isLoaded && userLoaded) {
+      if (isSignedIn && clerkUser) {
+        // User is signed in with Clerk
+        const convertedUser = convertClerkUser(clerkUser);
+        setUser(convertedUser);
+      } else {
+        // Check for legacy auth (fallback)
+        try {
+          const currentUser = apiService.getCurrentUser();
+          if (currentUser && apiService.isAuthenticated()) {
+            setUser(currentUser);
+          } else {
+            setUser(null);
+          }
+        } catch (error) {
+          console.error("Auth check failed:", error);
+          setUser(null);
+        }
+      }
       setIsLoading(false);
     }
+  }, [isLoaded, userLoaded, isSignedIn, clerkUser]);
+
+  const login = async (credentials: AuthCredentials): Promise<boolean> => {
+    // Since Clerk handles authentication through components,
+    // this method is kept for backward compatibility but will show a message
+    toast({
+      title: "Please use the login form",
+      description:
+        "Authentication is now handled by Clerk. Please use the sign-in form.",
+      variant: "default",
+    });
+    return false;
   };
 
   const signup = async (userData: SignupData): Promise<boolean> => {
+    // Since Clerk handles authentication through components,
+    // this method is kept for backward compatibility but will show a message
+    toast({
+      title: "Please use the signup form",
+      description:
+        "Account creation is now handled by Clerk. Please use the sign-up form.",
+      variant: "default",
+    });
+    return false;
+  };
+
+  const logout = async () => {
     setIsLoading(true);
     try {
-      const user = await apiService.signup(userData);
-      setUser(user);
+      if (isSignedIn) {
+        // Sign out from Clerk
+        await signOut();
+      } else {
+        // Legacy logout
+        apiService.logout();
+      }
+
+      setUser(null);
       toast({
-        title: "Account Created!",
-        description: `Welcome ${user.name}! Your account has been created successfully.`,
+        title: "Signed out successfully",
+        description: "You have been signed out of your account.",
       });
-      return true;
     } catch (error) {
-      const message = apiService.handleApiError(error);
       toast({
-        title: "Signup Failed",
-        description: message,
+        title: "Error signing out",
+        description: "There was a problem signing out. Please try again.",
         variant: "destructive",
       });
-      return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    apiService.logout();
-    setUser(null);
-    toast({
-      title: "Logged Out",
-      description: "You have been successfully logged out.",
-    });
-  };
-
   const refreshUser = () => {
-    const currentUser = apiService.getCurrentUser();
-    setUser(currentUser);
+    if (isSignedIn && clerkUser) {
+      // Refresh from Clerk
+      const convertedUser = convertClerkUser(clerkUser);
+      setUser(convertedUser);
+    } else {
+      // Legacy refresh
+      const currentUser = apiService.getCurrentUser();
+      setUser(currentUser);
+    }
   };
 
   return {
     user,
-    isAuthenticated: !!user,
-    isLoading,
+    isAuthenticated: isSignedIn || !!user,
+    isLoading: !isLoaded || !userLoaded || isLoading,
     login,
     signup,
     logout,
     refreshUser,
+    // Additional Clerk-specific properties
+    clerkUser,
+    isSignedIn: isSignedIn || false,
   };
 };
 

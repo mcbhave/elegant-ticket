@@ -1,93 +1,4 @@
-// Helper function to determine if URL is external
-const isExternalUrl = (url: string) => {
-  if (!url) return false;
-  return (
-    url.startsWith("http://") ||
-    url.startsWith("https://") ||
-    url.startsWith("//")
-  );
-};
-
-// Helper function to get the correct URL for a menu item
-const getMenuUrl = (menu: DynamicMenu) => {
-  if (menu.name.toLowerCase() === "home") {
-    return "/";
-  }
-
-  // If custom_url exists, use it as is
-  if (menu.custom_url) {
-    return menu.custom_url;
-  }
-
-  // Fallback to name-based URL
-  return `/${menu.name.toLowerCase()}`;
-};
-
-// Helper function to determine if menu should open in new window
-const shouldOpenInNewWindow = (menu: DynamicMenu) => {
-  // If explicitly set to open in new window
-  if (menu.Open_new_window) return true;
-
-  // If it's an external URL, open in new window
-  if (menu.custom_url && isExternalUrl(menu.custom_url)) return true;
-
-  return false;
-};
-
-// Render dynamic menu item - UPDATED VERSION
-const renderDynamicMenuItem = (menu: DynamicMenu, isMobile = false) => {
-  const menuUrl = getMenuUrl(menu);
-  const openInNewWindow = shouldOpenInNewWindow(menu);
-  const isExternal = isExternalUrl(menuUrl);
-
-  // For internal URLs, check if active
-  const isActive = !isExternal && isMenuItemActive(menuUrl, menu.name);
-
-  const baseClasses = isMobile
-    ? "text-foreground hover:text-primary transition-colors duration-200 font-medium block py-2"
-    : "text-foreground/80 hover:text-primary transition-colors duration-200 font-medium relative group";
-
-  const linkProps = {
-    className: baseClasses,
-    onClick: isMobile ? () => setIsMenuOpen(false) : undefined,
-  };
-
-  // Handle external URLs or URLs that should open in new window
-  if (openInNewWindow || isExternal) {
-    return (
-      <a
-        key={menu.id}
-        href={menuUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        {...linkProps}
-      >
-        <span className="flex items-center">
-          {menu.display_name}
-          {!isMobile && <ExternalLink className="w-3 h-3 ml-1" />}
-        </span>
-        {!isMobile && (
-          <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
-        )}
-      </a>
-    );
-  }
-
-  // Handle internal URLs (including relative paths like /products)
-  return (
-    <Link key={menu.id} to={menuUrl} {...linkProps}>
-      {menu.display_name}
-      {!isMobile && !isActive && (
-        <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
-      )}
-      {!isMobile && isActive && (
-        <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary" />
-      )}
-    </Link>
-  );
-};
-
-// Complete updated Header component
+// Updated Header component to fetch fresh customer URLs on each menu click
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -95,10 +6,10 @@ import {
   User,
   Menu,
   X,
-  Calendar,
   Settings,
   LogOut,
   ExternalLink,
+  ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,73 +22,56 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
-import { apiService } from "@/services/api";
+import {
+  apiService,
+  DynamicMenu,
+  HeaderProps,
+  ShopInfo,
+  CustomerUrls,
+} from "@/services/api";
+import DynamicSEO from "@/components/DynamicSEO";
 
-// Dynamic menu interface
-interface DynamicMenu {
-  id: number;
-  created_at: number;
-  shops_id: string;
-  name: string;
-  seq: number;
-  display_name: string;
-  is_visible: boolean;
-  custom_url: string;
-  Open_new_window: boolean;
-}
+// Helper functions remain the same...
+const isExternalUrl = (url: string) => {
+  if (!url) return false;
+  return (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("//")
+  );
+};
 
-interface HeaderProps {
-  shopId?: string;
-}
+const getMenuUrl = (menu: DynamicMenu) => {
+  if (menu.name.toLowerCase() === "home") {
+    return "/";
+  }
+
+  if (menu.custom_url) {
+    return menu.custom_url;
+  }
+
+  return `/${menu.name.toLowerCase()}`;
+};
+
+const shouldOpenInNewWindow = (menu: DynamicMenu) => {
+  if (menu.Open_new_window) return true;
+  if (menu.custom_url && isExternalUrl(menu.custom_url)) return true;
+  return false;
+};
 
 export const Header: React.FC<HeaderProps> = ({ shopId }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dynamicMenus, setDynamicMenus] = useState<DynamicMenu[]>([]);
   const [isLoadingMenus, setIsLoadingMenus] = useState(true);
+  const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
+  const [isLoadingUserAction, setIsLoadingUserAction] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Helper function to determine if URL is external
-  const isExternalUrl = (url: string) => {
-    if (!url) return false;
-    return (
-      url.startsWith("http://") ||
-      url.startsWith("https://") ||
-      url.startsWith("//")
-    );
-  };
-
-  // Helper function to determine if menu should open in new window
-  const shouldOpenInNewWindow = (menu: DynamicMenu) => {
-    // If explicitly set to open in new window
-    if (menu.Open_new_window) return true;
-
-    // If it's an external URL, open in new window
-    if (menu.custom_url && isExternalUrl(menu.custom_url)) return true;
-
-    return false;
-  };
-
-  // Helper function to get the correct URL for a menu item
-  const getMenuUrl = (menu: DynamicMenu) => {
-    if (menu.name.toLowerCase() === "home") {
-      return "/";
-    }
-
-    // If custom_url exists, use it as is
-    if (menu.custom_url) {
-      return menu.custom_url;
-    }
-
-    // Fallback to name-based URL
-    return `/${menu.name.toLowerCase()}`;
-  };
-
-  // Helper function to determine if a menu item is active (only for internal URLs)
+  // Helper function to determine if a menu item is active
   const isMenuItemActive = (menuUrl: string, menuName: string) => {
-    // Don't mark external URLs as active
     if (isExternalUrl(menuUrl)) return false;
 
     if (menuName.toLowerCase() === "home") {
@@ -188,56 +82,39 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     );
   };
 
-  // Fetch dynamic menus
+  // Fetch initial data (menus and shop info) - no customer URLs here
   useEffect(() => {
-    const fetchDynamicMenus = async () => {
+    const fetchHeaderData = async () => {
       try {
         setIsLoadingMenus(true);
-        const menus = await apiService.getDynamicMenus(shopId);
-        // Filter visible menus and sort by sequence
-        const visibleMenus = menus
-          .filter((menu) => menu.is_visible)
+
+        // Fetch all menus for header placement
+        const allMenus = await apiService.getMenus(shopId);
+        const headerMenus = allMenus
+          .filter((menu) => menu.is_visible && menu.placement === "header")
           .sort((a, b) => a.seq - b.seq);
-        setDynamicMenus(visibleMenus);
+
+        setDynamicMenus(headerMenus);
+
+        // Fetch shops info separately to get the shop name and menu configurations
+        const shopInfoData = await apiService.getShopsInfo();
+        if (shopInfoData) {
+          setShopInfo(shopInfoData);
+        }
       } catch (error) {
-        console.error("Failed to load dynamic menus:", error);
-        // Fallback to default menus if API fails
-        setDynamicMenus([
-          {
-            id: 1,
-            created_at: Date.now(),
-            shops_id: "",
-            name: "events",
-            seq: 1,
-            display_name: "Events",
-            is_visible: true,
-            custom_url: "/events",
-            Open_new_window: false,
-          },
-          {
-            id: 2,
-            created_at: Date.now(),
-            shops_id: "",
-            name: "about",
-            seq: 2,
-            display_name: "About",
-            is_visible: true,
-            custom_url: "/about",
-            Open_new_window: false,
-          },
-        ]);
+        // Silent error handling
       } finally {
         setIsLoadingMenus(false);
       }
     };
 
-    fetchDynamicMenus();
+    fetchHeaderData();
   }, [shopId]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/events?search=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/search/${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery("");
     }
   };
@@ -247,13 +124,99 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     navigate("/");
   };
 
-  // Render dynamic menu item
+  // Updated function to only fetch customer URLs when dashboard is clicked
+  const handleUserMenuClick = async (
+    menuType: "dashboard" | "cart" | "settings"
+  ) => {
+    if (!isAuthenticated || !user) return;
+
+    // Prevent multiple simultaneous clicks
+    if (isLoadingUserAction) {
+      return;
+    }
+
+    setIsLoadingUserAction(true);
+
+    try {
+      // Get base URLs from shopInfo
+      const baseUrls = {
+        dashboard: shopInfo?.user_dashboard_url || "/dashboard",
+        cart: shopInfo?.user_shopping_cart_url || "/cart",
+        settings: shopInfo?.user_settings_url || "/settings",
+      };
+
+      let finalUrl = baseUrls[menuType];
+
+      // Only fetch customer URLs for dashboard clicks
+      if (menuType === "dashboard") {
+        try {
+          // Fetch fresh customer URLs specifically for dashboard
+          const customerUrls = await apiService.getCustomerUrls();
+
+          if (customerUrls?.external_dashbord_token) {
+            finalUrl = finalUrl + customerUrls.external_dashbord_token;
+          } else {
+          }
+        } catch (apiError) {
+          console.error(
+            "Failed to fetch customer URLs for dashboard:",
+            apiError
+          );
+        }
+      } else {
+        // For cart and settings, use base URLs directly without API call
+      }
+
+      // Handle redirection with a small delay to ensure state updates
+      setTimeout(() => {
+        if (isExternalUrl(finalUrl)) {
+          window.location.href = finalUrl;
+        } else {
+          navigate(finalUrl);
+        }
+      }, 100);
+    } catch (error) {
+      console.error(`Failed to handle ${menuType} menu click:`, error);
+
+      // Fallback to base URL on error
+      // @ts-ignore
+      const baseUrl = baseUrls[menuType];
+
+      setTimeout(() => {
+        if (isExternalUrl(baseUrl)) {
+          window.location.href = baseUrl;
+        } else {
+          navigate(baseUrl);
+        }
+      }, 100);
+    } finally {
+      // Reset loading state after a delay to prevent rapid clicks
+      setTimeout(() => {
+        setIsLoadingUserAction(false);
+      }, 500);
+    }
+  };
+
+  // Get static menu names (no URLs needed here since we handle them dynamically)
+  const getMenuNames = () => {
+    const sourceInfo =
+      shopInfo || (dynamicMenus.length > 0 ? dynamicMenus[0]._shop_info : null);
+
+    return {
+      dashboard: sourceInfo?.user_dashboard_name || "Dashboard",
+      shoppingCart: sourceInfo?.user_shopping_cart_name || "Shopping Cart",
+      settings: sourceInfo?.user_setting_name || "Settings",
+      logout: sourceInfo?.user_logout_name || "Log out",
+    };
+  };
+
+  const menuNames = getMenuNames();
+
+  // Render dynamic menu item function remains the same
   const renderDynamicMenuItem = (menu: DynamicMenu, isMobile = false) => {
     const menuUrl = getMenuUrl(menu);
     const openInNewWindow = shouldOpenInNewWindow(menu);
     const isExternal = isExternalUrl(menuUrl);
-
-    // For internal URLs, check if active
     const isActive = !isExternal && isMenuItemActive(menuUrl, menu.name);
 
     const baseClasses = isMobile
@@ -263,9 +226,14 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     const linkProps = {
       className: baseClasses,
       onClick: isMobile ? () => setIsMenuOpen(false) : undefined,
+      style: {
+        color:
+          menu.font_color && menu.font_color !== "null"
+            ? menu.font_color
+            : undefined,
+      },
     };
 
-    // Handle external URLs or URLs that should open in new window
     if (openInNewWindow || isExternal) {
       return (
         <a
@@ -286,7 +254,6 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
       );
     }
 
-    // Handle internal URLs (including relative paths like /products)
     return (
       <Link key={menu.id} to={menuUrl} {...linkProps}>
         {menu.display_name}
@@ -300,30 +267,44 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     );
   };
 
+  // Dynamic header styles
+  const headerStyle = {
+    backgroundColor:
+      shopInfo?.menu_header_background_color &&
+      shopInfo.menu_header_background_color !== "null"
+        ? shopInfo.menu_header_background_color
+        : undefined,
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b border-border shadow-sm">
+    <header
+      className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b border-border shadow-sm"
+      style={headerStyle}
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+          {/* Logo - Updated to use _shops.name */}
           <Link to="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center group-hover:shadow-glow transition-all duration-300 p-1">
-              <img
-                src="https://elegantapt.com/wp-content/uploads/2024/04/Elegant_Revised_T_Logo_cropped.png.webp"
-                alt="Elegant Enterprise Logo"
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
-              <div className="w-full h-full bg-gradient-primary rounded-lg items-center justify-center hidden">
-                <Calendar className="w-5 h-5 text-white" />
+            {shopInfo?.logo && (
+              <div className="flex items-center justify-center group-hover:shadow-glow transition-all duration-300">
+                <img
+                  src={shopInfo.logo}
+                  alt={`${shopInfo._shops?.name || shopInfo.title}`}
+                  className="max-h-12 max-w-24 h-auto w-auto object-contain"
+                  style={{
+                    minHeight: "32px",
+                    minWidth: "32px",
+                  }}
+                />
               </div>
-            </div>
-            <span className="text-xl font-bold gradient-text hidden sm:block"></span>
+            )}
+            <span className="text-xl font-bold gradient-text hidden sm:block">
+              {shopInfo?._shops?.name}
+            </span>
           </Link>
 
           {/* Desktop Navigation - Dynamic Menus */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-8 p-10">
             {isLoadingMenus ? (
               // Loading skeleton
               <div className="flex space-x-8">
@@ -346,9 +327,14 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
           >
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              {shopInfo?.header_4_font_color && (
+                <style>
+                  {`.search-input::placeholder { color: ${shopInfo.header_4_font_color} !important; }`}
+                </style>
+              )}
               <Input
                 type="search"
-                placeholder="Search events..."
+                placeholder={shopInfo?.header_4 || "Search..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-muted/50 border-0 focus:bg-surface focus:ring-2 focus:ring-primary/20"
@@ -364,6 +350,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
                   <Button
                     variant="ghost"
                     className="relative h-8 w-8 rounded-full"
+                    disabled={isLoadingUserAction}
                   >
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={user.avatar} alt={user.name} />
@@ -383,31 +370,55 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
                     </div>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="w-full cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      Dashboard
-                    </Link>
+
+                  {/* Dynamic Dashboard Menu Item */}
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => handleUserMenuClick("dashboard")}
+                    disabled={isLoadingUserAction}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    {menuNames.dashboard}
+                    {isLoadingUserAction && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        Loading...
+                      </span>
+                    )}
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/my-passes" className="w-full cursor-pointer">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      My Passes
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="w-full cursor-pointer">
+
+                  {/* Dynamic Shopping Cart Menu Item - only show if name is provided */}
+                  {menuNames.shoppingCart && menuNames.shoppingCart.trim() && (
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => handleUserMenuClick("cart")}
+                      disabled={isLoadingUserAction}
+                    >
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      {menuNames.shoppingCart}
+                    </DropdownMenuItem>
+                  )}
+
+                  {/* Dynamic Settings Menu Item - only show if name is provided */}
+                  {menuNames.settings && menuNames.settings.trim() && (
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => handleUserMenuClick("settings")}
+                      disabled={isLoadingUserAction}
+                    >
                       <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
+                      {menuNames.settings}
+                    </DropdownMenuItem>
+                  )}
+
                   <DropdownMenuSeparator />
+
+                  {/* Dynamic Logout Menu Item */}
                   <DropdownMenuItem
                     className="cursor-pointer text-destructive focus:text-destructive"
                     onClick={handleLogout}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
-                    Log out
+                    {menuNames.logout}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -441,7 +452,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               type="search"
-              placeholder="Search events..."
+              placeholder={shopInfo?.header_4 || "Search..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-muted/50 border-0"

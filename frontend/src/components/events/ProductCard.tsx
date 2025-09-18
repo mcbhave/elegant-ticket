@@ -1,59 +1,16 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ShoppingCart, Store, Tag, ExternalLink } from "lucide-react";
+import {
+  ShoppingCart,
+  Package,
+  Star,
+  ExternalLink,
+  Building,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-interface Product {
-  id: number;
-  shops_id: string;
-  item_type: string;
-  Is_disabled: boolean;
-  created_at: number;
-  title: string;
-  description: string;
-  SEO_Tags?: string;
-  tags?: string;
-  _item_images_of_items?: {
-    items?: ProductImage[];
-  };
-  _shops?: {
-    id: string;
-    name: string;
-    description: string;
-    logo: string;
-    custom_domain: string;
-    Is_visible: boolean;
-    slug: string;
-  };
-  _users?: {
-    id: number;
-    name: string;
-    email: string;
-    role: string;
-  };
-  _action_buttons?: ActionButton[];
-}
-
-type ProductImage = {
-  id: number;
-  display_image?: string;
-  seq: number;
-  image_type: string;
-  Is_disabled: boolean;
-};
-
-type ActionButton = {
-  id: number;
-  name: string;
-  sharable_link: string;
-  background_color: string;
-  font_color: string;
-  Is_visible: boolean;
-  seq: number;
-  open_in_new_window?: boolean;
-};
+import { apiService, Product, ActionButton } from "@/services/api";
 
 interface ProductCardProps {
   product: Product;
@@ -64,36 +21,80 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   className = "",
 }) => {
-  // Get images from the product
-  const images = product._item_images_of_items?.items || [];
-  const primaryImage = images.find((img) => img.seq === 1) || images[0];
+  // Get product images
+  const productImages = product._item_images_of_items?.items || [];
+  const primaryImage =
+    productImages.find((img) => img.seq === 1) || productImages[0];
 
   // Get action buttons from API
-  const actionButtons: ActionButton[] = (product._action_buttons || [])
+  const actionButtons: ActionButton[] = (product._action_buttons_of_items || [])
     .filter((button: ActionButton) => button.Is_visible)
     .sort((a: ActionButton, b: ActionButton) => a.seq - b.seq);
 
+  const handleButtonClick = async (button: ActionButton) => {
+    try {
+      // Check if user is authenticated before attempting to add to cart
+      const isAuthenticated = apiService.isAuthenticated();
+
+      if (!isAuthenticated) {
+        // Redirect to login or show auth modal
+        const shouldLogin = confirm(
+          "Please log in to add items to your cart. Would you like to log in now?"
+        );
+        if (shouldLogin) {
+          window.location.href = "/auth"; // or your login page
+        }
+        return;
+      }
+
+      // Always call cart API on button click to increase counter
+      await apiService.addToCart(product.id, button.id, product.shops_id, 0);
+
+      console.log("Item added to cart successfully");
+
+      // If button has URL, redirect after API call
+      if (button.sharable_link && button.sharable_link !== "null") {
+        if (button.open_in_new_window) {
+          window.open(button.sharable_link, "_blank", "noopener,noreferrer");
+        } else {
+          window.location.href = button.sharable_link;
+        }
+      }
+    } catch (error) {
+      // Show user-friendly error message
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to add item to cart. Please try again.";
+
+      // You could replace this alert with a toast notification
+      alert(errorMessage);
+    }
+  };
+
   const getStatusBadge = () => {
-    const configMap = {
-      available: { label: "Available", variant: "default" as const },
-      disabled: { label: "Unavailable", variant: "secondary" as const },
-    };
-    const status = product.Is_disabled ? "disabled" : "available";
-    const config = configMap[status];
+    if (product.Is_disabled) {
+      return (
+        <Badge variant="destructive" className="text-xs">
+          Disabled
+        </Badge>
+      );
+    }
     return (
-      <Badge variant={config.variant} className="text-xs">
-        {config.label}
+      <Badge variant="default" className="text-xs">
+        Available
       </Badge>
     );
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  // Parse tags
+  const productTags = product.tags
+    ? product.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag)
+        .slice(0, 3)
+    : [];
 
   return (
     <Card
@@ -101,40 +102,47 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     >
       {/* Product Image */}
       <div className="relative overflow-hidden aspect-[16/10]">
-        <img
-          src={
-            primaryImage?.display_image
-              ? primaryImage.display_image.startsWith("//")
-                ? `https:${primaryImage.display_image}`
-                : primaryImage.display_image
-              : "/placeholder.svg"
-          }
-          alt={product.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          loading="lazy"
-        />
+        {primaryImage && (
+          <img
+            src={primaryImage.display_image}
+            alt={product.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.src =
+                "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&auto=format&fit=crop&q=80";
+            }}
+          />
+        )}
+        {!primaryImage && (
+          <div className="w-full h-full bg-muted flex items-center justify-center">
+            <Package className="w-16 h-16 text-muted-foreground" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
         {/* Status Badge */}
-        {/* <div className="absolute top-4 left-4">{getStatusBadge()}</div> */}
+        <div className="absolute top-4 left-4">{getStatusBadge()}</div>
 
         {/* Product Type Badge */}
-        <div className="absolute top-4 right-4">
-          <Badge className="bg-primary text-primary-foreground font-semibold">
-            {product.item_type}
-          </Badge>
-        </div>
+        {product.item_type && (
+          <div className="absolute top-4 right-4">
+            <Badge className="bg-primary text-primary-foreground font-semibold">
+              {product.item_type}
+            </Badge>
+          </div>
+        )}
 
         {/* Quick Actions Overlay */}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
           <div className="flex gap-2">
             <Button size="sm" asChild className="btn-glow">
-              <Link to={`/productdetails/${product.id}`}>View Details</Link>
+              <Link to={`/product/${product.slug}`}>View Details</Link>
             </Button>
             {product._shops?.custom_domain && (
               <Button size="sm" variant="secondary" asChild>
                 <a
-                  href={`https://${product._shops.custom_domain}`}
+                  href={product._shops.custom_domain}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -149,50 +157,57 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <CardContent className="p-6">
         {/* Title */}
         <h3 className="font-semibold text-lg mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-          <Link
-            to={`/productdetails/${product.id}`}
-            className="hover:underline"
-          >
+          <Link to={`/product/${product.slug}`} className="hover:underline">
             {product.title}
           </Link>
         </h3>
 
         {/* Description */}
-        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+        <p className="text-muted-foreground text-sm mb-3 line-clamp-3">
           {product.description}
         </p>
 
+        {/* Shop Info */}
+        {product._shops && (
+          <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
+            <Building className="w-4 h-4 text-primary" />
+            <span className="line-clamp-1">by {product._shops.name}</span>
+          </div>
+        )}
+
         {/* Product Info */}
-        <div className="space-y-2 text-sm text-muted-foreground">
-          {product._shops && (
+        <div className="space-y-2 text-sm text-muted-foreground mb-3">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-primary" />
+            <span>Product ID: {product.id}</span>
+          </div>
+          {product.created_at && (
             <div className="flex items-center gap-2">
-              <Store className="w-4 h-4 text-primary" />
-              <span className="line-clamp-1">{product._shops.name}</span>
+              <span className="text-xs">
+                Added: {new Date(product.created_at).toLocaleDateString()}
+              </span>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            {/* <Tag className="w-4 h-4 text-primary" /> */}
-            {/* <span>Added {formatDate(product.created_at)}</span> */}
-          </div>
         </div>
 
-        {/* Tags - Both SEO_Tags and tags */}
-        {(product.SEO_Tags || product.tags) && (
+        {/* Tags */}
+        {productTags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-3">
-            {/* Regular Tags */}
-            {product.tags &&
-              product.tags
-                .split(",")
-                .slice(0, 100)
-                .map((tag, i) => (
-                  <Badge
-                    key={`tag-${i}`}
-                    variant="outline"
-                    className="text-xs bg-green-50 text-green-700 border-green-200"
-                  >
-                    {tag.trim()}
-                  </Badge>
-                ))}
+            {productTags.map((tag, i) => (
+              <Badge key={`tag-${i}`} variant="outline" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Reviews count if available */}
+        {product._reviews_item_total > 0 && (
+          <div className="flex items-center gap-1 mt-2">
+            <Star className="w-4 h-4 text-yellow-400 fill-current" />
+            <span className="text-xs text-muted-foreground">
+              {product._reviews_item_total} reviews
+            </span>
           </div>
         )}
       </CardContent>
@@ -210,15 +225,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     backgroundColor: button.background_color,
                     color: button.font_color,
                   }}
-                  asChild
+                  onClick={() => handleButtonClick(button)}
                 >
-                  <a
-                    href={button.sharable_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {button.name}
-                  </a>
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  {button.name}
                 </Button>
               ))}
             </>
