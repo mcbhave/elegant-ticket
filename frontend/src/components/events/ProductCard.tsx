@@ -233,14 +233,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               ))}
             </>
           )}
-
-          {/* Default button if no action buttons */}
-          {actionButtons.length === 0 && (
-            <Button className="flex-1 btn-glow bg-primary text-primary-foreground hover:bg-primary/90">
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              Add to Cart
-            </Button>
-          )}
         </div>
       </CardFooter>
     </Card>
