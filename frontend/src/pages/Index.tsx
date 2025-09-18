@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useShop } from "@/contexts/ShopContext";
+import DynamicSEO from "@/components/DynamicSEO";
 import { apiService, ItemCategory, Event } from "@/services/api";
 
 const Index = () => {
@@ -178,6 +179,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Dynamic SEO Component - Uses shop defaults */}
+      <DynamicSEO />
+
       <Header />
 
       {/* Hero Section */}
