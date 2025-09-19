@@ -24,6 +24,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import SimpleSquareMap from "@/components/events/SimpleSquareMap";
 import { useItemSEO } from "@/hooks/useItemSEO";
+import { ReviewsSection } from "@/components/reuse/ReviewsSection";
+import { RelatedItemsSection } from "@/components/reuse/RelatedItemsSection";
 import {
   apiService,
   RelatedItem,
@@ -31,6 +33,8 @@ import {
   ReviewData,
   ReviewsResponse,
   Event,
+  ItemAddressesNewResponse,
+  ItemAddressNew,
 } from "@/services/api";
 
 const EventDetails = () => {
@@ -46,6 +50,7 @@ const EventDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
   const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
+  const [itemAddresses, setItemAddresses] = useState<ItemAddressNew[]>([]);
 
   // add seo script
   useEffect(() => {
@@ -66,6 +71,14 @@ const EventDetails = () => {
               setReviews(
                 reviewsResponse.items.filter((review) => review.Is_visible)
               );
+            }
+
+            // ONLY fetch from new API - ignore all legacy address data
+            const itemAddressesResponse = await apiService.getItemAddresses(
+              eventData.id
+            );
+            if (itemAddressesResponse && itemAddressesResponse.items) {
+              setItemAddresses(itemAddressesResponse.items);
             }
 
             // Fetch related items for this event
@@ -372,115 +385,21 @@ const EventDetails = () => {
               )}
 
               {/* Reviews  */}
-              {reviews.length > 0 && (
-                <Card className="bg-gradient-card border-0 shadow-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Star className="w-6 h-6 text-primary" />
-                        <span>Reviews & Ratings</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                        <span className="font-bold">
-                          {getAverageRating() > 0
-                            ? getAverageRating().toFixed(1)
-                            : "N/A"}
-                        </span>
-                        <span className="text-muted-foreground">
-                          ({getTotalReviews()} reviews)
-                        </span>
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      {reviews
-                        .slice(0, reviewsExpanded ? reviews.length : 2)
-                        .map((review) => (
-                          <div
-                            key={review.id}
-                            className="border-b border-border last:border-b-0 pb-4 last:pb-0"
-                          >
-                            <div className="flex items-start space-x-4">
-                              <Avatar className="w-10 h-10">
-                                <AvatarFallback className="bg-primary/10 text-primary">
-                                  {review.user_info?.name
-                                    ? review.user_info.name
-                                        .charAt(0)
-                                        .toUpperCase()
-                                    : "U"}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-1">
-                                  <h4 className="font-semibold">
-                                    {review.user_info?.name || "Anonymous User"}
-                                  </h4>
-                                  <div className="flex items-center">
-                                    {Array.from({ length: 5 }).map((_, i) => (
-                                      <Star
-                                        key={i}
-                                        className={`w-4 h-4 ${
-                                          i < review.Rating
-                                            ? "text-yellow-400 fill-current"
-                                            : "text-gray-300"
-                                        }`}
-                                      />
-                                    ))}
-                                  </div>
-                                  <span className="text-sm text-muted-foreground">
-                                    {formatReviewDate(review.created_at)}
-                                  </span>
-                                </div>
-                                <h5 className="font-medium mb-1">
-                                  {review.Title}
-                                </h5>
-                                <p className="text-muted-foreground">
-                                  {review.Comments}
-                                </p>
-                                {review.Helpful_count > 0 && (
-                                  <p className="text-sm text-muted-foreground mt-2">
-                                    {review.Helpful_count} people found this
-                                    helpful
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
 
-                      {reviews.length > 2 && (
-                        <Button
-                          variant="ghost"
-                          onClick={() => setReviewsExpanded(!reviewsExpanded)}
-                          className="w-full"
-                        >
-                          {reviewsExpanded
-                            ? "Show Less"
-                            : `Show ${reviews.length - 2} More Reviews`}
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              <ReviewsSection
+                reviews={reviews}
+                reviewsData={reviewsData}
+                initialDisplayCount={2}
+              />
             </div>
 
             {/* Right Column - Sidebar */}
             <div className="space-y-6">
               {/* Location Map - ADD THIS NEW SECTION */}
-              {event._events_seo_of_items?.address && (
+              {itemAddresses.length > 0 && (
                 <SimpleSquareMap
-                  address={event._events_seo_of_items.address}
-                  coordinates={
-                    event._events_seo_of_items?.location?.data
-                      ? {
-                          lat: event._events_seo_of_items.location.data.lat,
-                          lng: event._events_seo_of_items.location.data.lng,
-                        }
-                      : undefined
-                  }
+                  itemAddresses={itemAddresses}
+                  showMultipleAddresses={true}
                 />
               )}
               {/* Organizer Info */}
@@ -626,88 +545,14 @@ const EventDetails = () => {
       </section>
 
       {/* Related Items */}
-      {relatedItems.length > 0 && (
-        <section className="py-16 bg-background">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold mb-4">Related Items</h2>
-              <p className="text-xl text-muted-foreground">
-                Items related to this event
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {relatedItems.map((item) => (
-                <Card
-                  key={item.id}
-                  className="bg-gradient-card border-0 shadow-card hover:shadow-lg transition-shadow"
-                >
-                  <div className="aspect-video relative overflow-hidden rounded-t-lg">
-                    <img
-                      src={
-                        item.display_image ||
-                        "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&auto=format&fit=crop&q=80"
-                      }
-                      alt={item.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src =
-                          "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&auto=format&fit=crop&q=80";
-                      }}
-                    />
-                    {item.related_item_type && (
-                      <Badge className="absolute top-3 left-3 bg-primary/90 text-white">
-                        {item.related_item_type}
-                      </Badge>
-                    )}
-                  </div>
-                  <CardContent className="p-6">
-                    <h3 className="font-bold text-lg mb-2 line-clamp-2">
-                      {item.title}
-                    </h3>
-                    <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
-                      {item.description}
-                    </p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(item.created_at).toLocaleDateString()}
-                      </span>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link
-                          to={`/${item.related_item_type.toLowerCase()}s/${
-                            item.related_item_type.toLowerCase() === "event"
-                              ? item.slug
-                              : item.related_items_id
-                          }`}
-                          target={item.open_in_new_window ? "_blank" : "_self"}
-                          rel={
-                            item.open_in_new_window
-                              ? "noopener noreferrer"
-                              : undefined
-                          }
-                        >
-                          View Details
-                          <ArrowRight className="ml-2 w-4 h-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {relatedItems.length > 6 && (
-              <div className="text-center mt-8">
-                <Button variant="outline">
-                  View All Related Items
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
+      <RelatedItemsSection
+        relatedItems={relatedItems}
+        title="Related Items"
+        subtitle="Items related to this event"
+        maxDisplay={6}
+        showViewAllButton={true}
+        gridCols={{ default: 1, md: 2, lg: 3 }}
+      />
       {/* Footer */}
       <Footer />
     </div>
