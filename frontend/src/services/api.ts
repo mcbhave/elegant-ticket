@@ -1,6 +1,40 @@
 import axios, { AxiosInstance } from "axios";
 
 // ===== ALL YOUR EXISTING TYPES (keeping them as-is) =====
+
+export interface ItemAddress {
+  id: string;
+  created_at: number;
+  shops_id: string;
+  items_id: number;
+  addressType: string;
+  seq: number;
+  country: string;
+  country_code: string;
+  line1: string;
+  line2: string;
+  locality: string;
+  postal_code: string;
+  region: string;
+  region_code: string;
+  zip_code: string;
+  zip_four: string;
+  fulladdress: string;
+  show_directions_button: boolean;
+  Locations_text: string;
+}
+
+export interface ItemAddressesResponse {
+  items: ItemAddress[];
+  itemsReceived: number;
+  curPage: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  offset: number | null;
+  perPage: number | null;
+  itemsTotal: number | null;
+  pageTotal: number | null;
+}
 export interface User {
   id: string;
   email: string;
@@ -65,7 +99,16 @@ export interface Event {
   created_at?: string;
   updated_at?: string;
   _events_seo_of_items?: EventDetails;
-  _item_images_of_items?: EventImage[];
+  _item_images_of_items?: {
+    items?: EventImage[];
+    itemsReceived?: number;
+    curPage?: number;
+    nextPage?: number | null;
+    prevPage?: number | null;
+    offset?: number | null;
+    perPage?: number | null;
+  };
+  _item_addresses_of_items?: ItemAddressesResponse; // Add this new property
   _shops?: Shop;
 }
 
@@ -469,6 +512,44 @@ interface CustomerUrls {
   external_settings: string;
 }
 
+// map
+export interface ItemAddressNew {
+  id: string;
+  created_at: number;
+  shops_id: string;
+  items_id: number;
+  addressType: string;
+  seq: number;
+  country: string;
+  country_code: string;
+  line1: string;
+  line2: string;
+  locality: string;
+  postal_code: string;
+  region: string;
+  region_code: string;
+  zip_code: string;
+  zip_four: string;
+  fulladdress: string;
+  show_directions_button: boolean;
+  Locations_text: string;
+  latitude: string;
+  longitude: string;
+  gmapkey: string;
+}
+
+export interface ItemAddressesNewResponse {
+  itemsReceived: number;
+  curPage: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  offset: number;
+  perPage: number;
+  itemsTotal: number;
+  pageTotal: number;
+  items: ItemAddressNew[];
+}
+
 // ===== OPTIMIZED API SERVICE =====
 class ApiService {
   private api: AxiosInstance;
@@ -715,7 +796,8 @@ class ApiService {
       url.includes("/items_categories") ||
       url.includes("/customer_urls") ||
       url.includes("/cart_items") ||
-      url.includes("/items_details")
+      url.includes("/items_details") ||
+      url.includes("/item_addresses")
     );
   }
 
@@ -890,6 +972,23 @@ class ApiService {
         return res.data;
       } catch (err) {
         console.error("Failed to fetch reviews", err);
+        return null;
+      }
+    });
+  }
+
+  // get map
+  async getItemAddresses(
+    itemId: number | string
+  ): Promise<ItemAddressesNewResponse | null> {
+    const cacheKey = this.getCacheKey(`/item_addresses/${itemId}`);
+
+    return this.makeRequest(cacheKey, async () => {
+      try {
+        const res = await this.api.get(`/item_addresses/${itemId}`);
+        return res.data;
+      } catch (err) {
+        console.error("Failed to fetch item addresses", err);
         return null;
       }
     });
