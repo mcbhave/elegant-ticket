@@ -1,4 +1,4 @@
-// Updated Header component to fetch fresh customer URLs on each menu click
+// Updated Header component with guest cart support
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -21,7 +21,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/contexts/CartContext";
 import {
   apiService,
   DynamicMenu,
@@ -29,7 +31,6 @@ import {
   ShopInfo,
   CustomerUrls,
 } from "@/services/api";
-import DynamicSEO from "@/components/DynamicSEO";
 
 // Helper functions remain the same...
 const isExternalUrl = (url: string) => {
@@ -67,6 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
   const [isLoadingUserAction, setIsLoadingUserAction] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
+  const { itemCount, refreshCart, transferGuestCart } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -82,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     );
   };
 
-  // Fetch initial data (menus and shop info) - no customer URLs here
+  // Fetch initial data (menus and shop info)
   useEffect(() => {
     const fetchHeaderData = async () => {
       try {
@@ -96,13 +98,13 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
 
         setDynamicMenus(headerMenus);
 
-        // Fetch shops info separately to get the shop name and menu configurations
+        // Fetch shops info separately
         const shopInfoData = await apiService.getShopsInfo();
         if (shopInfoData) {
           setShopInfo(shopInfoData);
         }
       } catch (error) {
-        // Silent error handling
+        console.error("Failed to fetch header data:", error);
       } finally {
         setIsLoadingMenus(false);
       }
@@ -110,6 +112,24 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
 
     fetchHeaderData();
   }, [shopId]);
+
+  // Handle authentication state changes for cart transfer
+  // useEffect(() => {
+  //   if (isAuthenticated && user?.id) {
+  //     // User just logged in, transfer guest cart
+  //     const transferCart = async () => {
+  //       try {
+  //         await transferGuestCart();
+  //       } catch (error) {
+  //         console.error("Failed to transfer guest cart in header:", error);
+  //       }
+  //     };
+
+  //     // Small delay to ensure auth is fully set up
+  //     const timeoutId = setTimeout(transferCart, 1000);
+  //     return () => clearTimeout(timeoutId);
+  //   }
+  // }, [isAuthenticated, user?.id, transferGuestCart]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,18 +139,33 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      logout();
+      // Refresh cart to show guest cart after logout
+      await refreshCart();
+      navigate("/");
+    } catch (error) {
+      console.error("Failed to handle logout:", error);
+      navigate("/");
+    }
   };
 
-  // Updated function to only fetch customer URLs when dashboard is clicked
+  // Updated function to handle user menu clicks with guest cart consideration
   const handleUserMenuClick = async (
     menuType: "dashboard" | "cart" | "settings"
   ) => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !user) {
+      // For guests, only allow cart access
+      if (menuType === "cart") {
+        navigate("/cart");
+        return;
+      }
+      // For other menu types, redirect to auth
+      navigate("/auth?tab=signin");
+      return;
+    }
 
-    // Prevent multiple simultaneous clicks
     if (isLoadingUserAction) {
       return;
     }
@@ -150,12 +185,9 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
       // Only fetch customer URLs for dashboard clicks
       if (menuType === "dashboard") {
         try {
-          // Fetch fresh customer URLs specifically for dashboard
           const customerUrls = await apiService.getCustomerUrls();
-
           if (customerUrls?.external_dashbord_token) {
             finalUrl = finalUrl + customerUrls.external_dashbord_token;
-          } else {
           }
         } catch (apiError) {
           console.error(
@@ -163,11 +195,9 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
             apiError
           );
         }
-      } else {
-        // For cart and settings, use base URLs directly without API call
       }
 
-      // Handle redirection with a small delay to ensure state updates
+      // Handle redirection
       setTimeout(() => {
         if (isExternalUrl(finalUrl)) {
           window.location.href = finalUrl;
@@ -178,8 +208,11 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     } catch (error) {
       console.error(`Failed to handle ${menuType} menu click:`, error);
 
-      // Fallback to base URL on error
-      // @ts-ignore
+      const baseUrls = {
+        dashboard: shopInfo?.user_dashboard_url || "/dashboard",
+        cart: shopInfo?.user_shopping_cart_url || "/cart",
+        settings: shopInfo?.user_settings_url || "/settings",
+      };
       const baseUrl = baseUrls[menuType];
 
       setTimeout(() => {
@@ -190,14 +223,18 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
         }
       }, 100);
     } finally {
-      // Reset loading state after a delay to prevent rapid clicks
       setTimeout(() => {
         setIsLoadingUserAction(false);
       }, 500);
     }
   };
 
-  // Get static menu names (no URLs needed here since we handle them dynamically)
+  // Handle cart button click - accessible to both guests and authenticated users
+  const handleCartClick = () => {
+    navigate("/cart");
+  };
+
+  // Get static menu names
   const getMenuNames = () => {
     const sourceInfo =
       shopInfo || (dynamicMenus.length > 0 ? dynamicMenus[0]._shop_info : null);
@@ -283,7 +320,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo - Updated to use _shops.name */}
+          {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 group">
             {shopInfo?.logo && (
               <div className="flex items-center justify-center group-hover:shadow-glow transition-all duration-300">
@@ -303,10 +340,9 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
             </span>
           </Link>
 
-          {/* Desktop Navigation - Dynamic Menus */}
+          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8 p-10">
             {isLoadingMenus ? (
-              // Loading skeleton
               <div className="flex space-x-8">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -321,29 +357,47 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
           </nav>
 
           {/* Search Bar */}
-          <form
-            onSubmit={handleSearch}
-            className="hidden lg:flex items-center max-w-sm mx-auto"
-          >
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              {shopInfo?.header_4_font_color && (
-                <style>
-                  {`.search-input::placeholder { color: ${shopInfo.header_4_font_color} !important; }`}
-                </style>
-              )}
-              <Input
-                type="search"
-                placeholder={shopInfo?.header_4 || "Search..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-muted/50 border-0 focus:bg-surface focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-          </form>
+          {!shopInfo?.hide_search_bar && (
+            <form
+              onSubmit={handleSearch}
+              className="hidden lg:flex items-center max-w-sm mx-auto"
+            >
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                {shopInfo?.header_4_font_color && (
+                  <style>
+                    {`.search-input::placeholder { color: ${shopInfo.header_4_font_color} !important; }`}
+                  </style>
+                )}
+                <Input
+                  type="search"
+                  placeholder={shopInfo?.header_4 || "Search..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-muted/50 border-0 focus:bg-surface focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </form>
+          )}
 
           {/* User Actions */}
           <div className="flex items-center space-x-4">
+            {/* Cart Icon - Always visible for both guests and authenticated users */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative"
+              onClick={handleCartClick}
+              title={isAuthenticated ? "View Cart" : "View Cart (Guest)"}
+            >
+              <ShoppingCart className="w-5 h-5" />
+              {itemCount > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-primary text-primary-foreground">
+                  {itemCount > 99 ? "99+" : itemCount}
+                </Badge>
+              )}
+            </Button>
+
             {isAuthenticated && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -386,7 +440,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
                     )}
                   </DropdownMenuItem>
 
-                  {/* Dynamic Shopping Cart Menu Item - only show if name is provided */}
+                  {/* Dynamic Shopping Cart Menu Item */}
                   {menuNames.shoppingCart && menuNames.shoppingCart.trim() && (
                     <DropdownMenuItem
                       className="cursor-pointer"
@@ -398,7 +452,7 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
                     </DropdownMenuItem>
                   )}
 
-                  {/* Dynamic Settings Menu Item - only show if name is provided */}
+                  {/* Dynamic Settings Menu Item */}
                   {menuNames.settings && menuNames.settings.trim() && (
                     <DropdownMenuItem
                       className="cursor-pointer"
@@ -447,25 +501,26 @@ export const Header: React.FC<HeaderProps> = ({ shopId }) => {
         </div>
 
         {/* Mobile Search */}
-        <div className="lg:hidden pb-4">
-          <form onSubmit={handleSearch} className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              type="search"
-              placeholder={shopInfo?.header_4 || "Search..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-muted/50 border-0"
-            />
-          </form>
-        </div>
+        {!shopInfo?.hide_search_bar && (
+          <div className="lg:hidden pb-4">
+            <form onSubmit={handleSearch} className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                type="search"
+                placeholder={shopInfo?.header_4 || "Search..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-muted/50 border-0"
+              />
+            </form>
+          </div>
+        )}
 
-        {/* Mobile Navigation - Dynamic Menus */}
+        {/* Mobile Navigation */}
         {isMenuOpen && (
           <div className="md:hidden border-t border-border py-4">
             <nav className="flex flex-col space-y-4">
               {isLoadingMenus ? (
-                // Loading skeleton for mobile
                 <div className="space-y-4">
                   {[1, 2, 3].map((i) => (
                     <div

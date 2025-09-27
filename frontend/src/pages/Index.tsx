@@ -260,36 +260,38 @@ const Index = () => {
           )}
 
           {/* Search Form */}
-          <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-8">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/60 w-5 h-5" />
-              {shopInfo?.header_4_font_color && (
-                <style>
-                  {`.search-input::placeholder { color: ${shopInfo.header_4_font_color} !important; }`}
-                </style>
-              )}
-              <Input
-                type="search"
-                placeholder={
-                  shopInfoLoading ? "Loading..." : shopInfo?.header_4
-                }
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="search-input pl-12 pr-32 py-4 text-lg bg-white/10 border-white/20 text-white focus:bg-white/20 backdrop-blur-sm"
-                disabled={shopInfoLoading}
-              />
-              <Button
-                type="submit"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 btn-glow"
-                style={{
-                  color: shopInfo?.header_5_font_color || "#ffffff",
-                }}
-              >
-                <Search className="w-4 h-4 mr-2" />
-                {shopInfo?.header_5 || "Search"}
-              </Button>
-            </div>
-          </form>
+          {!shopInfo?.hide_search_bar && (
+            <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-8">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/60 w-5 h-5" />
+                {shopInfo?.header_4_font_color && (
+                  <style>
+                    {`.search-input::placeholder { color: ${shopInfo.header_4_font_color} !important; }`}
+                  </style>
+                )}
+                <Input
+                  type="search"
+                  placeholder={
+                    shopInfoLoading ? "Loading..." : shopInfo?.header_4
+                  }
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="search-input pl-12 pr-32 py-4 text-lg bg-white/10 border-white/20 text-white focus:bg-white/20 backdrop-blur-sm"
+                  disabled={shopInfoLoading}
+                />
+                <Button
+                  type="submit"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 btn-glow"
+                  style={{
+                    color: shopInfo?.header_5_font_color || "#ffffff",
+                  }}
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  {shopInfo?.header_5 || "Search"}
+                </Button>
+              </div>
+            </form>
+          )}
 
           {/* Dynamic Action Buttons from API */}
           {shopInfo?._shop_action_buttons_of_shops?.items &&
