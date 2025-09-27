@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useItemSEO } from "@/hooks/useItemSEO";
 import { ReviewsSection } from "@/components/reuse/ReviewsSection";
 import { RelatedItemsSection } from "@/components/reuse/RelatedItemsSection";
+import { useCart } from "@/contexts/CartContext";
 
 import {
   apiService,
@@ -43,6 +44,7 @@ const ProductDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
   const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
+  const { addToCart: addToCartContext } = useCart();
 
   useEffect(() => {
     const loadProductDetails = async () => {
@@ -130,30 +132,29 @@ const ProductDetails = () => {
     return 0;
   };
 
+  // Replace your existing handleActionButtonClick function
   const handleActionButtonClick = async (button: ActionButton) => {
     try {
-      const isAuthenticated = apiService.isAuthenticated();
+      const result = await addToCartContext(
+        product!.id,
+        button.id,
+        product!.shops_id,
+        0
+      );
 
-      if (!isAuthenticated) {
-        const shouldLogin = confirm(
-          "Please log in to add items to your cart. Would you like to log in now?"
-        );
-        if (shouldLogin) {
-          window.location.href = "/auth";
+      if (result.success) {
+        console.log("Item added to cart successfully");
+        alert("Item added to cart successfully!");
+
+        if (button.sharable_link && button.sharable_link !== "null") {
+          if (button.open_in_new_window) {
+            window.open(button.sharable_link, "_blank", "noopener,noreferrer");
+          } else {
+            window.location.href = button.sharable_link;
+          }
         }
-        return;
-      }
-
-      await apiService.addToCart(product!.id, button.id, product!.shops_id, 0);
-
-      console.log("Item added to cart successfully");
-
-      if (button.sharable_link && button.sharable_link !== "null") {
-        if (button.open_in_new_window) {
-          window.open(button.sharable_link, "_blank", "noopener,noreferrer");
-        } else {
-          window.location.href = button.sharable_link;
-        }
+      } else {
+        alert(result.error || "Failed to add item to cart");
       }
     } catch (error) {
       const errorMessage =
@@ -286,10 +287,7 @@ const ProductDetails = () => {
                 <Button
                   size="lg"
                   className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  <ShoppingCart className="w-5 h-5 mr-2" />
-                  Add to Cart
-                </Button>
+                ></Button>
               )}
             </div>
           </div>
@@ -572,10 +570,7 @@ const ProductDetails = () => {
                     <Button
                       size="lg"
                       className="w-full btn-glow bg-white text-foreground hover:bg-white/90"
-                    >
-                      <ShoppingCart className="w-5 h-5 mr-2" />
-                      Add to Cart
-                    </Button>
+                    ></Button>
                   )}
                 </CardContent>
               </Card>

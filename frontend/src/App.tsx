@@ -17,6 +17,8 @@ import EventDetails from "./pages/EventDetails";
 import Products from "./pages/Products";
 import ProductDetails from "./pages/ProductDetails";
 import SearchResults from "./pages/SearchResults";
+import { CartProvider } from "@/contexts/CartContext";
+import Cart from "@/pages/Cart";
 
 const queryClient = new QueryClient();
 
@@ -113,52 +115,59 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <ShopProvider>
         <SEOProvider>
-          <AuthProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <ShopSEOInjector /> {/* Keep existing shop-level SEO injection */}
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/events" element={<Events />} />
-                  <Route path="/event/:slug" element={<EventDetails />} />
+          <CartProvider>
+            <AuthProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <ShopSEOInjector />{" "}
+                {/* Keep existing shop-level SEO injection */}
+                <BrowserRouter>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/events" element={<Events />} />
+                    <Route path="/event/:slug" element={<EventDetails />} />
 
-                  <Route path="/products" element={<Products />} />
-                  <Route path="/product/:slug" element={<ProductDetails />} />
-                  <Route path="/search/:query" element={<SearchResults />} />
-                  <Route path="*" element={<Navigate to="/items" replace />} />
-                  {/* <Route path="/blogs" element={<Blogs />} /> */}
-                  {/* <Route path="/blog/:slug" element={<BlogDetails />} /> */}
-                  {/* <Route path="/items" element={<Items />} /> */}
-                  {/* <Route path="/item/:slug" element={<ItemDetails />} /> */}
-                  {/* <Route path="/bookings" element={<Bookings />} /> */}
-                  {/* <Route path="/booking/:slug" element={<BookingDetails />} /> */}
-                  {/* <Route path="/properties" element={<Properties />} /> */}
-                  {/* <Route path="/property/:slug" element={<PropertyDetails />} /> */}
-                  {/* <Route path="/jobs" element={<Jobs />} /> */}
-                  {/* <Route path="/Job/:slug" element={<JobDetails />} /> */}
-                  {/* <Route path="/services" element={<Services />} /> */}
-                  {/* <Route path="/service/:slug" element={<ServiceDetails />} /> */}
-                  {/* <Route path="/profiles" element={<Profiles />} /> */}
-                  {/* <Route path="/profile/:slug" element={<ProfileDetails />} /> */}
-                  {/* <Route path="/books" element={<Books />} /> */}
-                  {/* <Route path="/book/:slug" element={<BookDetails />} /> */}
-                  {/* <Route path="/recipes" element={<Recipes />} /> */}
-                  {/* <Route path="/recipe/:slug" element={<RecipeDetails />} /> */}
-                  {/* <Route path="/localbusinesses" element={<LocalBusinesses />} /> */}
-                  {/* <Route path="/localbusiness/:slug" element={<LocalBusinessDetails />} /> */}
-                  {/* <Route path="/vacationrentals" element={<VacationRentals />} /> */}
-                  {/* <Route path="/vacationrental/:slug" element={<VacationRentalDetails />} /> */}
-                  {/* singular */}
-                  {/* <Route path="/faq/:slug" element={<FAQ />} /> */}
-                  {/* <Route path="/organizations" element={<Organizations />} /> */}
-                  {/* <Route path="/about/:slug" element={<About />} /> */}
-                </Routes>
-              </BrowserRouter>
-            </TooltipProvider>
-          </AuthProvider>
+                    <Route path="/products" element={<Products />} />
+                    <Route path="/product/:slug" element={<ProductDetails />} />
+                    <Route path="/search/:query" element={<SearchResults />} />
+                    <Route
+                      path="*"
+                      element={<Navigate to="/items" replace />}
+                    />
+                    <Route path="/cart" element={<Cart />} />
+                    {/* <Route path="/blogs" element={<Blogs />} /> */}
+                    {/* <Route path="/blog/:slug" element={<BlogDetails />} /> */}
+                    {/* <Route path="/items" element={<Items />} /> */}
+                    {/* <Route path="/item/:slug" element={<ItemDetails />} /> */}
+                    {/* <Route path="/bookings" element={<Bookings />} /> */}
+                    {/* <Route path="/booking/:slug" element={<BookingDetails />} /> */}
+                    {/* <Route path="/properties" element={<Properties />} /> */}
+                    {/* <Route path="/property/:slug" element={<PropertyDetails />} /> */}
+                    {/* <Route path="/jobs" element={<Jobs />} /> */}
+                    {/* <Route path="/Job/:slug" element={<JobDetails />} /> */}
+                    {/* <Route path="/services" element={<Services />} /> */}
+                    {/* <Route path="/service/:slug" element={<ServiceDetails />} /> */}
+                    {/* <Route path="/profiles" element={<Profiles />} /> */}
+                    {/* <Route path="/profile/:slug" element={<ProfileDetails />} /> */}
+                    {/* <Route path="/books" element={<Books />} /> */}
+                    {/* <Route path="/book/:slug" element={<BookDetails />} /> */}
+                    {/* <Route path="/recipes" element={<Recipes />} /> */}
+                    {/* <Route path="/recipe/:slug" element={<RecipeDetails />} /> */}
+                    {/* <Route path="/localbusinesses" element={<LocalBusinesses />} /> */}
+                    {/* <Route path="/localbusiness/:slug" element={<LocalBusinessDetails />} /> */}
+                    {/* <Route path="/vacationrentals" element={<VacationRentals />} /> */}
+                    {/* <Route path="/vacationrental/:slug" element={<VacationRentalDetails />} /> */}
+                    {/* singular */}
+                    {/* <Route path="/faq/:slug" element={<FAQ />} /> */}
+                    {/* <Route path="/organizations" element={<Organizations />} /> */}
+                    {/* <Route path="/about/:slug" element={<About />} /> */}
+                  </Routes>
+                </BrowserRouter>
+              </TooltipProvider>
+            </AuthProvider>
+          </CartProvider>
         </SEOProvider>
       </ShopProvider>
     </QueryClientProvider>

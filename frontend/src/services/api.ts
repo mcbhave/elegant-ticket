@@ -550,6 +550,37 @@ export interface ItemAddressesNewResponse {
   items: ItemAddressNew[];
 }
 
+// Add these new cart-related interfaces
+export interface CartItem {
+  id: string;
+  created_at: number;
+  shops_id: string;
+  cart_user_id: string;
+  items_id: number;
+  price: number;
+  action_id: string;
+  action_type: string;
+  quantity: number;
+  booking_slug: string;
+}
+
+export interface CartResponse {
+  redirect_url: string;
+  cart_item: CartItem[];
+}
+
+export interface CartItemsResponse {
+  itemsReceived: number;
+  curPage: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  offset: number;
+  perPage: number;
+  itemsTotal: number;
+  pageTotal: number;
+  items: CartItem[];
+}
+
 // ===== OPTIMIZED API SERVICE =====
 class ApiService {
   private api: AxiosInstance;
@@ -1215,7 +1246,30 @@ class ApiService {
     });
   }
 
-  // add to cart
+  // Add these methods inside the ApiService class
+
+  // ===== USER ID MANAGEMENT =====
+  private generateTempUserId(): string {
+    return `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private getCurrentUserId(): string {
+    // First try to get Clerk user ID
+    const user = this.getCurrentUser();
+    if (user?.id) {
+      return user.id;
+    }
+
+    // If no Clerk user, get or create temp ID
+    let tempId = localStorage.getItem("tempCartUserId");
+    if (!tempId) {
+      tempId = this.generateTempUserId();
+      localStorage.setItem("tempCartUserId", tempId);
+    }
+    return tempId;
+  }
+
+  // ===== CART METHODS =====
   async addToCart(
     itemsId: number,
     actionButtonsId: number,
@@ -1223,44 +1277,214 @@ class ApiService {
     price: number = 0
   ): Promise<any> {
     try {
-      // Check if user is authenticated
       const user = this.getCurrentUser();
-      if (!user || !user.id) {
-        throw new Error(
-          "Authentication required. Please log in to add items to cart."
+
+      if (user?.id) {
+        // Authenticated user - use API
+        const payload = {
+          shops_id: shopsId,
+          items_id: itemsId,
+          action_id: actionButtonsId.toString(),
+          action_type: "Add to cart",
+        };
+
+        const headers: Record<string, string> = {
+          "x-elegant-userid": user.id,
+        };
+
+        const res = await this.api.post("/cart_items", payload, { headers });
+        this.clearCacheByPattern("/cart_items");
+        return res.data;
+      } else {
+        // Anonymous user - use localStorage
+        const localCart = this.getLocalCart();
+
+        // Check if item already exists
+        const existingItemIndex = localCart.findIndex(
+          (item) =>
+            item.items_id === itemsId &&
+            item.action_id === actionButtonsId.toString()
         );
+
+        if (existingItemIndex > -1) {
+          // Increment quantity
+          localCart[existingItemIndex].quantity += 1;
+        } else {
+          // Add new item
+          const newItem: CartItem = {
+            id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            created_at: Date.now(),
+            shops_id: shopsId,
+            cart_user_id: "anonymous",
+            items_id: itemsId,
+            price: price,
+            action_id: actionButtonsId.toString(),
+            action_type: "Add to cart",
+            quantity: 1,
+            booking_slug: "",
+          };
+          localCart.push(newItem);
+        }
+
+        this.setLocalCart(localCart);
+
+        return {
+          redirect_url: "",
+          cart_item: [localCart[localCart.length - 1]],
+        };
       }
-
-      const payload = {
-        items_id: itemsId,
-        action_buttons_id: actionButtonsId,
-        shops_id: shopsId,
-        price: price,
-      };
-
-      // Add user ID header (similar to getCustomerUrls method)
-      const headers: Record<string, string> = {
-        "x-elegant-userid": user.id,
-      };
-
-      const res = await this.api.post("/cart_items", payload, { headers });
-
-      return res.data;
     } catch (err: any) {
       console.error("Failed to add item to cart", err);
+      throw new Error(this.handleApiError(err));
+    }
+  }
 
-      // More specific error handling
-      if (err.response?.status === 401) {
-        throw new Error("Authentication failed. Please log in again.");
-      } else if (err.response?.status === 404) {
-        throw new Error(
-          "Cart service is currently unavailable. Please try again later."
-        );
-      } else if (err.response?.status === 403) {
-        throw new Error("You don't have permission to add items to cart.");
+  async getCartItems(): Promise<CartItemsResponse> {
+    try {
+      const user = this.getCurrentUser();
+
+      // Only fetch from API if user is authenticated (Clerk user)
+      if (user?.id) {
+        const headers: Record<string, string> = {
+          "x-elegant-userid": user.id,
+        };
+
+        const res = await this.api.get("/cart_items", { headers });
+        return res.data;
+      } else {
+        // For anonymous users, return localStorage cart as API format
+        return this.getLocalCartAsApiFormat();
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch cart items", err);
+      // Return empty cart on error
+      return {
+        itemsReceived: 0,
+        curPage: 1,
+        nextPage: null,
+        prevPage: null,
+        offset: 0,
+        perPage: 25,
+        itemsTotal: 0,
+        pageTotal: 0,
+        items: [],
+      };
+    }
+  }
+  private setLocalCart(items: CartItem[]): void {
+    localStorage.setItem("anonymousCart", JSON.stringify(items));
+  }
+  private getLocalCartAsApiFormat(): CartItemsResponse {
+    const localCart = this.getLocalCart();
+    return {
+      itemsReceived: localCart.length,
+      curPage: 1,
+      nextPage: null,
+      prevPage: null,
+      offset: 0,
+      perPage: 25,
+      itemsTotal: localCart.length,
+      pageTotal: 1,
+      items: localCart,
+    };
+  }
+  private getLocalCart(): CartItem[] {
+    try {
+      const cart = localStorage.getItem("anonymousCart");
+      return cart ? JSON.parse(cart) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async transferCartToUser(): Promise<boolean> {
+    try {
+      const user = this.getCurrentUser();
+      if (!user?.id) {
+        return true;
       }
 
-      throw new Error(this.handleApiError(err));
+      const localCart = this.getLocalCart();
+      if (localCart.length === 0) {
+        return true;
+      }
+
+      // Get the temporary user ID that was used for anonymous cart
+      const tempUserId = localStorage.getItem("tempCartUserId");
+
+      // Step 1: Transfer each item to the authenticated user's cart
+      const headers = { "x-elegant-userid": user.id };
+      let successCount = 0;
+
+      for (const item of localCart) {
+        try {
+          const payload = {
+            shops_id: item.shops_id,
+            items_id: item.items_id,
+            action_id: item.action_id,
+            action_type: item.action_type,
+          };
+
+          await this.api.post("/cart_items", payload, { headers });
+          successCount++;
+        } catch (itemError) {
+          console.warn("Failed to transfer cart item:", item.id, itemError);
+        }
+      }
+
+      // Step 2: Delete old cart items from the temporary user ID (if we had one)
+      if (tempUserId) {
+        try {
+          const deleteHeaders = { "x-elegant-userid": tempUserId };
+          await this.api.delete("/cart_items", { headers: deleteHeaders });
+          console.log("Deleted old anonymous cart records for:", tempUserId);
+          localStorage.removeItem("tempCartUserId");
+        } catch (deleteError) {
+          console.warn("Failed to delete old cart items:", deleteError);
+          // Don't fail the whole process if delete fails
+        }
+      }
+
+      // Step 3: Clean up localStorage
+      if (successCount > 0) {
+        localStorage.removeItem("anonymousCart");
+        this.clearCacheByPattern("/cart_items");
+        console.log(
+          `Successfully transferred ${successCount}/${localCart.length} items and cleaned up old records`
+        );
+      }
+
+      return successCount > 0;
+    } catch (error) {
+      console.error("Failed to transfer cart:", error);
+      return false;
+    }
+  }
+
+  getCartItemCount(): Promise<number> {
+    return this.getCartItems().then((response) => response.itemsTotal || 0);
+  }
+
+  async getCartItems(): Promise<CartItemsResponse> {
+    try {
+      const user = this.getCurrentUser();
+
+      if (user?.id) {
+        // Authenticated user - use API
+        const headers: Record<string, string> = {
+          "x-elegant-userid": user.id,
+        };
+
+        const res = await this.api.get("/cart_items", { headers });
+        return res.data;
+      } else {
+        // Anonymous user - return localStorage cart
+        return this.getLocalCartAsApiFormat();
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch cart items", err);
+      // Return localStorage cart on API error
+      return this.getLocalCartAsApiFormat();
     }
   }
 
