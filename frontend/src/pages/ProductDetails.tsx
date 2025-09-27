@@ -283,12 +283,6 @@ const ProductDetails = () => {
                   {button.name}
                 </Button>
               ))}
-              {actionButtons.length === 0 && (
-                <Button
-                  size="lg"
-                  className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
-                ></Button>
-              )}
             </div>
           </div>
         </div>
@@ -565,13 +559,6 @@ const ProductDetails = () => {
                       {button.name}
                     </Button>
                   ))}
-
-                  {actionButtons.length === 0 && (
-                    <Button
-                      size="lg"
-                      className="w-full btn-glow bg-white text-foreground hover:bg-white/90"
-                    ></Button>
-                  )}
                 </CardContent>
               </Card>
             </div>
