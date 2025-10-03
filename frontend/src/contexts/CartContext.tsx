@@ -103,11 +103,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 
   const removeFromCart = async (cartItemId: string): Promise<boolean> => {
     try {
-      // TODO: Implement DELETE endpoint for cart items
-      // await apiService.removeFromCart(cartItemId);
+      // Call the API service method
+      await apiService.removeFromCart(cartItemId);
 
-      setCartItems((prev) => prev.filter((item) => item.id !== cartItemId));
-      setItemCount((prev) => prev - 1);
+      // Refresh the cart to get updated data
+      await fetchCart();
 
       return true;
     } catch (error) {
@@ -118,11 +118,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 
   const clearCart = async (): Promise<boolean> => {
     try {
-      // TODO: Implement DELETE endpoint to clear all cart items
-      // await apiService.clearCart();
+      // Call the API service method
+      await apiService.clearCart();
 
-      setCartItems([]);
-      setItemCount(0);
+      // Refresh the cart to get updated data
+      await fetchCart();
 
       return true;
     } catch (error) {
@@ -130,7 +130,6 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
       return false;
     }
   };
-
   const refreshCart = async () => {
     await fetchCart();
   };
@@ -160,10 +159,8 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
         );
 
         if (localCart.length > 0) {
-          console.log("Transferring cart items on auth change...");
           try {
             await apiService.transferCartToUser();
-            console.log("Cart transfer completed");
           } catch (error) {
             console.error("Failed to transfer cart:", error);
           }

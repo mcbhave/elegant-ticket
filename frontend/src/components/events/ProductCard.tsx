@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { apiService, Product, ActionButton } from "@/services/api";
+import { useCart } from "@/contexts/CartContext";
 
 interface ProductCardProps {
   product: Product;
@@ -21,13 +22,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   className = "",
 }) => {
+  const { addToCart } = useCart();
+
   // Get product images
   const productImages = product._item_images_of_items?.items || [];
   const primaryImage =
     productImages.find((img) => img.seq === 1) || productImages[0];
 
   // Get action buttons from API
-  const actionButtons: ActionButton[] = (product._action_buttons_of_items || [])
+  // Try both possible property names for action buttons
+  // @ts-ignore
+  const actionButtons: ActionButton[] = (
+    product._action_buttons_of_items ||
+    product._action_buttons ||
+    []
+  )
     .filter((button: ActionButton) => button.Is_visible)
     .sort((a: ActionButton, b: ActionButton) => a.seq - b.seq);
 
@@ -47,28 +56,41 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         return;
       }
 
-      // Always call cart API on button click to increase counter
-      await apiService.addToCart(product.id, button.id, product.shops_id, 0);
+      const result = await addToCart(
+        product.id,
+        button.id,
+        product.shops_id,
+        0
+      );
 
-      console.log("Item added to cart successfully");
+      if (result.success) {
+        console.log("Item added to cart successfully");
 
-      // If button has URL, redirect after API call
-      if (button.sharable_link && button.sharable_link !== "null") {
-        if (button.open_in_new_window) {
-          window.open(button.sharable_link, "_blank", "noopener,noreferrer");
-        } else {
-          window.location.href = button.sharable_link;
+        // Handle redirect_url from API response (priority)
+        if (result.redirect_url) {
+          if (button.open_in_new_window) {
+            window.open(result.redirect_url, "_blank", "noopener,noreferrer");
+          } else {
+            window.location.href = result.redirect_url;
+          }
         }
+        // Fallback to button's sharable_link if no redirect_url in response
+        else if (button.sharable_link && button.sharable_link !== "null") {
+          if (button.open_in_new_window) {
+            window.open(button.sharable_link, "_blank", "noopener,noreferrer");
+          } else {
+            window.location.href = button.sharable_link;
+          }
+        }
+      } else {
       }
     } catch (error) {
-      // Show user-friendly error message
+      console.error("Failed to add to cart:", error);
+
       const errorMessage =
         error instanceof Error
           ? error.message
           : "Failed to add item to cart. Please try again.";
-
-      // You could replace this alert with a toast notification
-      alert(errorMessage);
     }
   };
 
@@ -214,7 +236,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
       <CardFooter className="px-6 pb-6 pt-0">
         <div className="flex w-full gap-2">
-          {/* Dynamic Action Buttons */}
+          {/* Dynamic Action Buttons - Visible on Card */}
           {actionButtons.length > 0 && (
             <>
               {actionButtons.map((button) => (
@@ -227,7 +249,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   }}
                   onClick={() => handleButtonClick(button)}
                 >
-                  <ShoppingCart className="w-4 h-4 mr-2" />
                   {button.name}
                 </Button>
               ))}

@@ -828,7 +828,8 @@ class ApiService {
       url.includes("/customer_urls") ||
       url.includes("/cart_items") ||
       url.includes("/items_details") ||
-      url.includes("/item_addresses")
+      url.includes("/item_addresses") ||
+      url.includes("/customer")
     );
   }
 
@@ -980,7 +981,6 @@ class ApiService {
       const eventWithSlug = events.find((event: Event) => event.slug === slug);
 
       if (!eventWithSlug) {
-        console.log("No event found with slug:", slug);
         return null;
       }
 
@@ -1278,28 +1278,30 @@ class ApiService {
   ): Promise<any> {
     try {
       const user = this.getCurrentUser();
+      const payload = {
+        shops_id: shopsId,
+        items_id: itemsId,
+        action_id: actionButtonsId.toString(),
+        action_type: "Add to cart",
+      };
 
       if (user?.id) {
-        // Authenticated user - use API
-        const payload = {
-          shops_id: shopsId,
-          items_id: itemsId,
-          action_id: actionButtonsId.toString(),
-          action_type: "Add to cart",
-        };
+        // CRITICAL: Ensure customer exists BEFORE adding to cart
+        const customerExists = await this.ensureCustomerExists(user.id);
+        if (!customerExists) {
+          throw new Error("Failed to initialize customer account");
+        }
 
+        // Authenticated user - add user ID header
         const headers: Record<string, string> = {
           "x-elegant-userid": user.id,
         };
-
         const res = await this.api.post("/cart_items", payload, { headers });
         this.clearCacheByPattern("/cart_items");
         return res.data;
       } else {
         // Anonymous user - use localStorage
         const localCart = this.getLocalCart();
-
-        // Check if item already exists
         const existingItemIndex = localCart.findIndex(
           (item) =>
             item.items_id === itemsId &&
@@ -1307,10 +1309,8 @@ class ApiService {
         );
 
         if (existingItemIndex > -1) {
-          // Increment quantity
           localCart[existingItemIndex].quantity += 1;
         } else {
-          // Add new item
           const newItem: CartItem = {
             id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             created_at: Date.now(),
@@ -1327,7 +1327,6 @@ class ApiService {
         }
 
         this.setLocalCart(localCart);
-
         return {
           redirect_url: "",
           cart_item: [localCart[localCart.length - 1]],
@@ -1343,32 +1342,95 @@ class ApiService {
     try {
       const user = this.getCurrentUser();
 
-      // Only fetch from API if user is authenticated (Clerk user)
       if (user?.id) {
+        // Wait for auth token to be ready
+        await this.getClerkToken();
+
+        // CRITICAL: Ensure customer exists BEFORE fetching cart
+        const customerExists = await this.ensureCustomerExists(user.id);
+        if (!customerExists) {
+          console.error("Customer creation failed");
+          // Clear localStorage and return empty cart
+          localStorage.removeItem("anonymousCart");
+          return {
+            itemsReceived: 0,
+            curPage: 1,
+            nextPage: null,
+            prevPage: null,
+            offset: 0,
+            perPage: 25,
+            itemsTotal: 0,
+            pageTotal: 1,
+            items: [],
+          };
+        }
+
         const headers: Record<string, string> = {
           "x-elegant-userid": user.id,
         };
 
         const res = await this.api.get("/cart_items", { headers });
+
+        // CRITICAL: Always clear localStorage when we successfully get API data
+        // This ensures we never mix temp IDs with real UUIDs
+        localStorage.removeItem("anonymousCart");
+        localStorage.removeItem("tempCartUserId");
+
         return res.data;
       } else {
-        // For anonymous users, return localStorage cart as API format
+        // Anonymous user - return localStorage cart
+
         return this.getLocalCartAsApiFormat();
       }
     } catch (err: any) {
       console.error("Failed to fetch cart items", err);
-      // Return empty cart on error
-      return {
-        itemsReceived: 0,
-        curPage: 1,
-        nextPage: null,
-        prevPage: null,
-        offset: 0,
-        perPage: 25,
-        itemsTotal: 0,
-        pageTotal: 0,
-        items: [],
-      };
+
+      const user = this.getCurrentUser();
+
+      // If 404, it means empty cart
+      if (err.response?.status === 404) {
+        // Clear localStorage for logged-in users
+        if (user?.id) {
+          localStorage.removeItem("anonymousCart");
+          localStorage.removeItem("tempCartUserId");
+        }
+
+        return {
+          itemsReceived: 0,
+          curPage: 1,
+          nextPage: null,
+          prevPage: null,
+          offset: 0,
+          perPage: 25,
+          itemsTotal: 0,
+          pageTotal: 1,
+          items: [],
+        };
+      }
+
+      // For logged-in users with errors, return empty cart (DON'T use localStorage)
+      if (user?.id) {
+        console.error(
+          "Error for logged-in user - returning empty cart, NOT localStorage"
+        );
+        localStorage.removeItem("anonymousCart");
+        localStorage.removeItem("tempCartUserId");
+        return {
+          itemsReceived: 0,
+          curPage: 1,
+          nextPage: null,
+          prevPage: null,
+          offset: 0,
+          perPage: 25,
+          itemsTotal: 0,
+          pageTotal: 1,
+          items: [],
+        };
+      }
+
+      // Only for anonymous users - fallback to localStorage
+      console.warn("Anonymous user - using localStorage");
+      return this.getLocalCartAsApiFormat();
     }
   }
   private setLocalCart(items: CartItem[]): void {
@@ -1437,7 +1499,7 @@ class ApiService {
         try {
           const deleteHeaders = { "x-elegant-userid": tempUserId };
           await this.api.delete("/cart_items", { headers: deleteHeaders });
-          console.log("Deleted old anonymous cart records for:", tempUserId);
+
           localStorage.removeItem("tempCartUserId");
         } catch (deleteError) {
           console.warn("Failed to delete old cart items:", deleteError);
@@ -1449,9 +1511,6 @@ class ApiService {
       if (successCount > 0) {
         localStorage.removeItem("anonymousCart");
         this.clearCacheByPattern("/cart_items");
-        console.log(
-          `Successfully transferred ${successCount}/${localCart.length} items and cleaned up old records`
-        );
       }
 
       return successCount > 0;
@@ -1465,7 +1524,96 @@ class ApiService {
     return this.getCartItems().then((response) => response.itemsTotal || 0);
   }
 
-  async getCartItems(): Promise<CartItemsResponse> {
+  async ensureCustomerExists(clerkUserId: string): Promise<boolean> {
+    try {
+      const headers: Record<string, string> = {
+        "x-elegant-userid": clerkUserId,
+      };
+
+      try {
+        // First, try to check if customer exists by fetching cart (which requires customer)
+        // If this succeeds, customer already exists
+        await this.api.get("/cart_items", { headers });
+
+        return true;
+      } catch (checkError: any) {
+        // If 404, customer doesn't exist yet, create it
+        if (
+          checkError.response?.status === 404 &&
+          checkError.response?.data?.message === "Customer not found"
+        ) {
+          try {
+            const response = await this.api.post(
+              "/customer",
+              {
+                elegant_user_id: clerkUserId,
+                external_dashbord_token: "",
+                external_shopping_cart: "",
+                external_settings: "",
+                external_token: "",
+                customer_number: 0,
+                Full_name: "",
+              },
+              { headers }
+            );
+
+            return true;
+          } catch (createError: any) {
+            // If 409/400, customer was created by another request, that's fine
+            if (
+              createError.response?.status === 409 ||
+              createError.response?.status === 400
+            ) {
+              return true;
+            }
+            console.error(
+              "Failed to create customer:",
+              createError.response?.data
+            );
+            return false;
+          }
+        }
+
+        // Some other error occurred
+        console.error(
+          "Unexpected error checking customer:",
+          checkError.response?.data
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error("Error in ensureCustomerExists:", error);
+      return false;
+    }
+  }
+
+  // checkout items
+  async checkoutCart(): Promise<{
+    redirect_url: string;
+    result1: CartItem[];
+  } | null> {
+    try {
+      const user = this.getCurrentUser();
+
+      if (!user?.id) {
+        throw new Error("Please sign in to complete checkout");
+      }
+
+      const headers: Record<string, string> = {
+        "x-elegant-userid": user.id,
+      };
+
+      // Change from GET to POST
+      const res = await this.api.post("/cart_items/check_out", {}, { headers });
+      this.clearCacheByPattern("/cart_items");
+      return res.data;
+    } catch (err: any) {
+      console.error("Failed to checkout", err);
+      throw new Error(this.handleApiError(err));
+    }
+  }
+
+  async removeFromCart(cartItemId: string): Promise<boolean> {
     try {
       const user = this.getCurrentUser();
 
@@ -1475,16 +1623,51 @@ class ApiService {
           "x-elegant-userid": user.id,
         };
 
-        const res = await this.api.get("/cart_items", { headers });
-        return res.data;
+        await this.api.delete(`/cart_items/${cartItemId}`, { headers });
+        this.clearCacheByPattern("/cart_items");
+        return true;
       } else {
-        // Anonymous user - return localStorage cart
-        return this.getLocalCartAsApiFormat();
+        // Anonymous user - remove from localStorage
+        const localCart = this.getLocalCart();
+        const filteredCart = localCart.filter((item) => item.id !== cartItemId);
+        this.setLocalCart(filteredCart);
+        return true;
       }
     } catch (err: any) {
-      console.error("Failed to fetch cart items", err);
-      // Return localStorage cart on API error
-      return this.getLocalCartAsApiFormat();
+      console.error("Failed to remove cart item", err);
+      throw new Error(this.handleApiError(err));
+    }
+  }
+
+  // Alternative clearCart if DELETE /cart_items doesn't exist
+  async clearCart(): Promise<boolean> {
+    try {
+      const user = this.getCurrentUser();
+
+      if (user?.id) {
+        // Get all cart items
+        const cartResponse = await this.getCartItems();
+        const items = cartResponse.items;
+
+        // Delete each item individually
+        const headers: Record<string, string> = {
+          "x-elegant-userid": user.id,
+        };
+
+        for (const item of items) {
+          await this.api.delete(`/cart_items/${item.id}`, { headers });
+        }
+
+        this.clearCacheByPattern("/cart_items");
+        return true;
+      } else {
+        // Anonymous user - clear localStorage
+        localStorage.removeItem("anonymousCart");
+        return true;
+      }
+    } catch (err: any) {
+      console.error("Failed to clear cart", err);
+      throw new Error(this.handleApiError(err));
     }
   }
 

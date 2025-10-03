@@ -144,7 +144,6 @@ const ProductDetails = () => {
 
       if (result.success) {
         console.log("Item added to cart successfully");
-        alert("Item added to cart successfully!");
 
         if (button.sharable_link && button.sharable_link !== "null") {
           if (button.open_in_new_window) {
@@ -154,14 +153,12 @@ const ProductDetails = () => {
           }
         }
       } else {
-        alert(result.error || "Failed to add item to cart");
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error
           ? error.message
           : "Failed to add item to cart. Please try again.";
-      alert(errorMessage);
     }
   };
 
