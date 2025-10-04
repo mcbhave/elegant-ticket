@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import {
-  ShoppingCart,
-  Minus,
-  Plus,
-  Trash2,
-  ArrowLeft,
-  User,
-} from "lucide-react";
+import { ShoppingCart, Trash2, ArrowLeft, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Header } from "@/components/layout/Header";
@@ -19,29 +12,33 @@ import { apiService } from "@/services/api";
 const Cart = () => {
   const {
     cartItems,
-    cartCount,
-    guestId,
+    itemCount: cartCount,
     isLoading,
     removeFromCart,
     clearCart,
+    refreshCart: fetchCart,
   } = useCart();
 
   const [isUpdating, setIsUpdating] = useState<Record<string, boolean>>({});
   const [isClearing, setIsClearing] = useState(false);
 
   const currentUser = apiService.getCurrentUser();
+  const guestId = !currentUser ? localStorage.getItem("tempCartUserId") : null;
   const isGuest = !currentUser && !!guestId;
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const handleRemoveItem = async (cartItemId: string) => {
     try {
       setIsUpdating((prev) => ({ ...prev, [cartItemId]: true }));
+
+      // Use the context method instead
       const success = await removeFromCart(cartItemId);
-      if (!success) {
-        alert("Failed to remove item from cart. Please try again.");
+
+      if (success) {
+      } else {
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error removing item:", error);
-      alert("Failed to remove item from cart. Please try again.");
     } finally {
       setIsUpdating((prev) => ({ ...prev, [cartItemId]: false }));
     }
@@ -54,13 +51,17 @@ const Cart = () => {
 
     try {
       setIsClearing(true);
+
+      // Use the context method
       const success = await clearCart();
-      if (!success) {
+
+      if (success) {
+      } else {
         alert("Failed to clear cart. Please try again.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error clearing cart:", error);
-      alert("Failed to clear cart. Please try again.");
+      alert(error.message || "Failed to clear cart. Please try again.");
     } finally {
       setIsClearing(false);
     }
@@ -74,6 +75,30 @@ const Cart = () => {
 
   const getTotalItems = () => {
     return cartItems.reduce((total, item) => total + item.quantity, 0);
+  };
+
+  const handleCheckout = async () => {
+    // Check if user is logged in first
+    if (!currentUser) {
+      // Redirect to auth page if not logged in
+      window.location.href = "/auth";
+      return;
+    }
+
+    try {
+      setIsCheckingOut(true);
+      const result = await apiService.checkoutCart();
+
+      if (result?.redirect_url) {
+        // Redirect to the checkout URL
+        window.location.href = result.redirect_url;
+      } else {
+      }
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+    } finally {
+      setIsCheckingOut(false);
+    }
   };
 
   if (isLoading) {
@@ -201,7 +226,7 @@ const Cart = () => {
                           Item ID: {item.items_id}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Action: {item.action_buttons_id}
+                          Action: {item.action_id}
                         </p>
                         {item.price > 0 && (
                           <p className="text-sm font-medium">
@@ -285,9 +310,17 @@ const Cart = () => {
                 <Button
                   className="w-full"
                   size="lg"
-                  disabled={cartItems.length === 0}
+                  disabled={cartItems.length === 0 || isCheckingOut}
+                  onClick={handleCheckout}
                 >
-                  Proceed to Checkout
+                  {isCheckingOut ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    "Proceed to Checkout"
+                  )}
                 </Button>
 
                 <Button
@@ -307,46 +340,6 @@ const Cart = () => {
                 </Button>
               </CardContent>
             </Card>
-
-            {/* User Status Card */}
-            {/* <Card>
-              <CardContent className="p-4">
-                {isGuest ? (
-                  <div className="text-sm text-muted-foreground">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <User className="w-4 h-4" />
-                      <strong>Guest Cart</strong>
-                    </div>
-                    <p className="mb-2">
-                      Your cart is stored temporarily with ID:
-                      <code className="text-xs bg-muted px-1 py-0.5 rounded ml-1">
-                        {guestId?.substring(0, 20)}...
-                      </code>
-                    </p>
-                    <p className="mb-4">
-                      Sign in to sync your cart across devices and complete your
-                      purchase.
-                    </p>
-                    <Button asChild className="w-full" variant="outline">
-                      <Link to="/auth">Sign In to Save Cart</Link>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <User className="w-4 h-4" />
-                      <strong>Signed In</strong>
-                    </div>
-                    <p className="mb-2">
-                      Welcome back, {currentUser?.name || currentUser?.email}!
-                    </p>
-                    <p>
-                      Your cart is saved and synced across all your devices.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card> */}
 
             {/* Cart Actions */}
             <Card>
