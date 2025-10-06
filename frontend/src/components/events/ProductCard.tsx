@@ -42,20 +42,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const handleButtonClick = async (button: ActionButton) => {
     try {
-      // Check if user is authenticated before attempting to add to cart
-      const isAuthenticated = apiService.isAuthenticated();
-
-      if (!isAuthenticated) {
-        // Redirect to login or show auth modal
-        const shouldLogin = confirm(
-          "Please log in to add items to your cart. Would you like to log in now?"
-        );
-        if (shouldLogin) {
-          window.location.href = "/auth"; // or your login page
-        }
-        return;
-      }
-
       const result = await addToCart(
         product.id,
         button.id,
@@ -83,10 +69,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           }
         }
       } else {
+        console.error("Failed to add to cart:", result.error);
       }
     } catch (error) {
       console.error("Failed to add to cart:", error);
-
       const errorMessage =
         error instanceof Error
           ? error.message
