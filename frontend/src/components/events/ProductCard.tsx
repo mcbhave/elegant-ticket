@@ -50,8 +50,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       );
 
       if (result.success) {
-        console.log("Item added to cart successfully");
-
         // Handle redirect_url from API response (priority)
         if (result.redirect_url) {
           if (button.open_in_new_window) {
